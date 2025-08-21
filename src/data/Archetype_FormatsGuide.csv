@@ -1,0 +1,9 @@
+Format,UI Requirements,Data Format in 'Options',Scoring Notes
+Forced Choice,Buttons; single select,"Comma-separated: 'Option A, Option B, Option C'",Map each option to one/more archetypes
+Slider,1–7 slider with labels (Strongly disagree → Strongly agree),Numeric range '1..7',Score = slider value (or scaled) to mapped archetypes
+Image Choice,Grid of images; captions optional,"Comma-separated keys 'img:key1,key2,...'",App resolves keys to asset URLs; map each key to archetypes
+Word Choice,Chips; single select,Comma-separated words,Each word maps to archetypes
+Word Choice (Multi),Chips; multi-select with max 2,Comma-separated words,Each selected word adds points (cap for multi)
+Ranking,Drag-and-drop list,Pipe-separated 'A|B|C|D',"Top=+3, 2nd=+2, 3rd=+1, 4th=0 (customisable)"
+Story Completion,Prompt + endings; single select,Comma-separated endings,Each ending maps to archetypes
+Scenario Decision,Short scenario text + options,Comma-separated options,Each option maps to archetypes
