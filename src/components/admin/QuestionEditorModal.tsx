@@ -159,8 +159,9 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
       } else {
         console.error('Failed to load images:', response.statusText);
       }
-    } catch (error) {
-      console.error('Error loading images:', error);
+      } else {
+        const data = await response.json();
+        setAvailableImages(data.images || []);
     } finally {
       setIsLoadingImages(false);
     }
@@ -435,12 +436,9 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
         }
        console.log('✅ Image Choice validation passed');
       }
-      
-     console.log('🚀 Calling onSave...');
-      await new Promise(resolve => setTimeout(resolve, 500));
       onSave(updatedQuestion);
-     console.log('✅ onSave completed successfully');
-     console.log('=== FORM SUBMISSION COMPLETED ===');
+      setImageError('API server not running. Please start it with: npm run start-api');
+      setAvailableImages([]);
     } catch (error) {
      console.error('❌ Error saving question:', error);
      console.log('=== FORM SUBMISSION FAILED ===');
