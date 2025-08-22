@@ -181,23 +181,28 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
   };
 
   const updateImageAsset = (index: number, key: string) => {
-    setImageAssets(prev => prev.map((asset, i) => 
-      i === index ? { 
-        ...asset, 
-        key: key,
-        url: key ? getImageUrl(key) : ''
-      } : asset
-    ));
+    const newAssets = [...imageAssets];
+    newAssets[index] = {
+      ...newAssets[index],
+      key: key,
+      url: key ? getImageUrl(key) : ''
+    };
+    setImageAssets(newAssets);
+    
+    // Also update imageAssetKeys for mapping tab
+    const newKeys = [...imageAssetKeys];
+    newKeys[index] = key;
+    setImageAssetKeys(newKeys);
   };
 
   const replaceImageAsset = (index: number, file: File) => {
-    setImageAssets(prev => prev.map((asset, i) => 
-      i === index ? { 
-        ...asset, 
-        file: file,
-        url: URL.createObjectURL(file)
-      } : asset
-    ));
+    const newAssets = [...imageAssets];
+    newAssets[index] = {
+      ...newAssets[index],
+      file: file,
+      url: URL.createObjectURL(file)
+    };
+    setImageAssets(newAssets);
   };
 
   const handleArchetypeToggle = (archetype: ArchetypeName) => {
@@ -841,7 +846,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
             </p>
           )}
 
-          {imageAssetKeys.length === 0 || imageAssetKeys.every(key => !key.trim()) ? (
+          {imageAssets.length === 0 || imageAssets.every(asset => !asset.key || !asset.key.trim()) ? (
             <div className="text-center py-8 bg-gray-50 rounded-lg">
               <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No Asset Keys Added</h3>
@@ -851,11 +856,13 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
             </div>
           ) : (
             <div className="space-y-6">
-              {imageAssetKeys.filter(key => key.trim()).map((assetKey, keyIndex) => (
+              {imageAssets.filter(asset => asset.key && asset.key.trim()).map((asset, keyIndex) => {
+                const assetKey = asset.key;
+                return (
                 <div key={keyIndex} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex items-center mb-4">
                     <img 
-                      src={getImageUrl(assetKey)} 
+                      src={asset.url || getImageUrl(assetKey)} 
                       alt={assetKey}
                       className="w-16 h-16 object-cover rounded-lg border border-gray-200 mr-4"
                       onError={(e) => {
@@ -917,7 +924,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
                     })}
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           )}
         </div>
