@@ -835,7 +835,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
               Image Choice Archetype Mapping
             </h3>
             <p className="text-sm text-purple-800">
-              Assign percentage weights to archetypes for each image option. Weights don't need to total 100%.
+              Assign percentage weights to archetypes for each image option. Weights don't need to total 100%. This step is optional and can be completed later.
             </p>
           </div>
 
@@ -846,7 +846,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
             </p>
           )}
 
-          {imageAssets.length === 0 || imageAssets.every(asset => !asset.key || !asset.key.trim()) ? (
+          {imageAssetKeys.length === 0 || imageAssetKeys.every(key => !key.trim()) ? (
             <div className="text-center py-8 bg-gray-50 rounded-lg">
               <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No Asset Keys Added</h3>
@@ -856,13 +856,11 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
             </div>
           ) : (
             <div className="space-y-6">
-              {imageAssets.filter(asset => asset.key && asset.key.trim()).map((asset, keyIndex) => {
-                const assetKey = asset.key;
-                return (
+              {imageAssetKeys.filter(key => key.trim()).map((assetKey, keyIndex) => (
                 <div key={keyIndex} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex items-center mb-4">
                     <img 
-                      src={asset.url || getImageUrl(assetKey)} 
+                      src={getImageUrl(assetKey)} 
                       alt={assetKey}
                       className="w-16 h-16 object-cover rounded-lg border border-gray-200 mr-4"
                       onError={(e) => {
@@ -924,7 +922,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
                     })}
                   </div>
                 </div>
-              )})}
+              ))}
             </div>
           )}
         </div>
