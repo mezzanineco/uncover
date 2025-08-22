@@ -179,7 +179,7 @@ function AppContent() {
   return (
     <LandingPage 
       onStartAssessment={handleStartAssessment}
-      onAdminAccess={() => setCurrentState('auth')}
+      onAdminAccess={() => setCurrentState('admin')}
     />
   );
 }
