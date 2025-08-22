@@ -1,5 +1,4 @@
 import React from 'react';
-import { getImageUrl } from '../../data/imageAssets';
 
 interface ImageChoiceProps {
   question: string;
@@ -12,7 +11,7 @@ interface ImageChoiceProps {
 
 export function ImageChoice({ question, options, assetKeys, value, onChange, disabled }: ImageChoiceProps) {
   // Parse asset keys if provided
-  const imageKeys = assetKeys?.replace('img:', '').split(',').map(k => k.trim()) || options;
+  const imagePaths = assetKeys?.replace('img:', '').split(',').map(k => k.trim()) || options;
   
   return (
     <div className="space-y-6">
@@ -21,13 +20,13 @@ export function ImageChoice({ question, options, assetKeys, value, onChange, dis
       </h3>
       
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        {imageKeys.map((key, index) => {
-          const optionValue = options[index] || key;
+        {imagePaths.map((imagePath, index) => {
+          const optionValue = options[index] || imagePath;
           const isSelected = value === optionValue;
           
           return (
             <label
-              key={key}
+              key={imagePath}
               className={`
                 relative cursor-pointer rounded-lg overflow-hidden transition-all duration-200 transform hover:scale-105
                 ${isSelected 
@@ -48,9 +47,12 @@ export function ImageChoice({ question, options, assetKeys, value, onChange, dis
               />
               <div className="aspect-square">
                 <img
-                  src={getImageUrl(key)}
+                  src={imagePath}
                   alt={optionValue}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
                 />
                 {isSelected && (
                   <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center">
@@ -64,7 +66,7 @@ export function ImageChoice({ question, options, assetKeys, value, onChange, dis
               </div>
               <div className="p-2 bg-white">
                 <p className="text-sm font-medium text-gray-900 text-center capitalize">
-                  {optionValue.replace(/_/g, ' ')}
+                  {optionValue.replace(/.*\//, '').replace(/\.[^/.]+$/, '').replace(/_/g, ' ')}
                 </p>
               </div>
             </label>
