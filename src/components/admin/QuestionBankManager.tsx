@@ -418,6 +418,16 @@ export function QuestionBankManager({
                             </button>
                           )}
                           
+                          {question.status === 'archived' && (
+                            <button
+                              onClick={() => onUpdateQuestion({...question, status: 'active'})}
+                              className="text-green-600 hover:text-green-900"
+                              title="Unarchive Question"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </button>
+                          )}
+                          
                           {!question.usedInSessions && (
                             <button
                               onClick={() => onDeleteQuestion(question.id)}
