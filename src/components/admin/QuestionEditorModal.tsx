@@ -253,8 +253,16 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
       newErrors.options = 'All options must have text';
     }
 
-    if (formData.format === 'Image Choice' && imageAssets.length === 0) {
-      newErrors.images = 'At least one image is required for Image Choice questions';
+    if (formData.format === 'Image Choice') {
+      if (imageAssets.length === 0) {
+        newErrors.images = 'At least one image is required for Image Choice questions';
+      } else {
+        // Check that all image assets have keys
+        const hasEmptyKeys = imageAssets.some(asset => !asset.key || !asset.key.trim());
+        if (hasEmptyKeys) {
+          newErrors.images = 'All images must have asset keys';
+        }
+      }
     }
 
     // Validate mappings
@@ -286,28 +294,29 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
       if (formData.format === 'Image Choice' && imageAssets.length > 0) {
         console.log('Processing image assets:', imageAssets);
         
-        const processedKeys = await Promise.all(
-          imageAssets.map(async (asset) => {
-            if (asset.file) {
-              // Simulate file upload for new files
-              console.log('Uploading new file:', asset.file.name);
-              await new Promise(resolve => setTimeout(resolve, 200));
-              
-              // Generate asset key from filename if not provided
-              const assetKey = asset.key || asset.file.name
-                .split('.')[0]
-                .toLowerCase()
-                .replace(/[^a-z0-9]/g, '_');
-              
-              console.log('Generated asset key:', assetKey);
-              return assetKey;
-            } else {
-              // Keep existing asset key
-              console.log('Keeping existing asset key:', asset.key);
-              return asset.key;
-            }
-          })
-        );
+        // Process all image assets and generate keys
+        const processedKeys = [];
+        
+        for (const asset of imageAssets) {
+          if (asset.file) {
+            // For new files, simulate upload and generate key
+            console.log('Processing new file:', asset.file.name);
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+            // Generate asset key from filename if not provided
+            const assetKey = asset.key || asset.file.name
+              .split('.')[0]
+              .toLowerCase()
+              .replace(/[^a-z0-9]/g, '_');
+            
+            console.log('Generated asset key for new file:', assetKey);
+            processedKeys.push(assetKey);
+          } else if (asset.key) {
+            // Keep existing asset key
+            console.log('Keeping existing asset key:', asset.key);
+            processedKeys.push(asset.key);
+          }
+        }
         
         processedAssetKeys = `img:${processedKeys.join(',')}`;
         console.log('Final asset keys string:', processedAssetKeys);
@@ -316,7 +325,9 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
       // Convert form data back to ParsedQuestion
       const parsedOptions = formData.format === 'Slider' 
         ? ['1', '2', '3', '4', '5', '6', '7']
-        : options.filter(opt => opt.trim());
+        : formData.format === 'Image Choice' && imageAssets.length > 0
+          ? imageAssets.map(asset => asset.key || 'unnamed')
+          : options.filter(opt => opt.trim());
 
       const parsedMapping: Record<string, any[]> = {};
       
@@ -354,7 +365,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
         parsedMapping,
         category: formData.category,
         overlapGroup: formData.overlapGroup || undefined,
-        assetKeys: processedAssetKeys || undefined,
+        assetKeys: formData.format === 'Image Choice' ? processedAssetKeys : undefined,
         notes: formData.notes || undefined,
         required: true,
         maxSelections: formData.format === 'Word Choice (Multi)' ? formData.maxSelections : undefined,
@@ -566,15 +577,21 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
                 <div className="space-y-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Asset Key
+                      Asset Key *
                     </label>
                     <input
                       type="text"
                       value={asset.key}
                       onChange={(e) => updateImageAsset(index, e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                        !asset.key?.trim() ? 'border-red-300' : 'border-gray-300'
+                      }`}
                       placeholder="e.g., crown, compass, flame"
+                      required
                     />
+                    {!asset.key?.trim() && (
+                      <p className="text-xs text-red-600 mt-1">Asset key is required</p>
+                    )}
                   </div>
                   
                   {!asset.url && (
