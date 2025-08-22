@@ -99,7 +99,10 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
       // Parse image assets if present
       if (question.assetKeys && question.format === 'Image Choice') {
         const keys = question.assetKeys.replace('img:', '').split(',');
-        setImageAssets(keys.map(key => ({ key: key.trim(), url: '' })));
+        setImageAssets(keys.map(key => ({ 
+          key: key.trim(), 
+          url: getImageUrl ? getImageUrl(key.trim()) : `https://images.pexels.com/photos/1029599/pexels-photo-1029599.jpeg?auto=compress&cs=tinysrgb&w=400`
+        })));
       }
     } else {
       // Reset for new question
