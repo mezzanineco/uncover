@@ -168,7 +168,12 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
 
   const updateImageAsset = (index: number, key: string, file?: File) => {
     setImageAssets(prev => prev.map((asset, i) => 
-      i === index ? { ...asset, key, file, url: file ? URL.createObjectURL(file) : asset.url } : asset
+      i === index ? { 
+        ...asset, 
+        key: key || (file ? file.name.split('.')[0] : asset.key), 
+        file, 
+        url: file ? URL.createObjectURL(file) : asset.url 
+      } : asset
     ));
   };
 
@@ -178,7 +183,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
         ...asset, 
         file, 
         url: URL.createObjectURL(file),
-        key: asset.key || file.name.split('.')[0]
+        key: asset.key || file.name.split('.')[0].toLowerCase().replace(/[^a-z0-9]/g, '_')
       } : asset
     ));
   };
