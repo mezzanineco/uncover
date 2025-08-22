@@ -266,13 +266,26 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
     }
 
     // Validate mappings
-    const hasValidMappings = options.some(option => {
-      const mapping = optionMappings.find(m => m.option === option);
-      return mapping && mapping.weights.length > 0;
-    });
+    if (formData.format !== 'Slider' && formData.format !== 'Image Choice') {
+      const hasValidMappings = options.some(option => {
+        const mapping = optionMappings.find(m => m.option === option);
+        return mapping && mapping.weights.length > 0;
+      });
 
-    if (!hasValidMappings && formData.format !== 'Slider') {
-      newErrors.mapping = 'At least one option must have archetype mappings';
+      if (!hasValidMappings) {
+        newErrors.mapping = 'At least one option must have archetype mappings';
+      }
+    } else if (formData.format === 'Image Choice') {
+      // For Image Choice, validate that we have mappings for the asset keys
+      const hasValidImageMappings = imageAssets.some(asset => {
+        if (!asset.key) return false;
+        const mapping = optionMappings.find(m => m.option === asset.key);
+        return mapping && mapping.weights.length > 0;
+      });
+
+      if (imageAssets.length > 0 && !hasValidImageMappings) {
+        newErrors.mapping = 'At least one image must have archetype mappings';
+      }
     }
 
     setErrors(newErrors);
@@ -761,6 +774,102 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
                   );
                 })}
               </div>
+            </div>
+          )}
+        </div>
+      ) : formData.format === 'Image Choice' ? (
+        <div className="space-y-6">
+          <div className="bg-purple-50 p-4 rounded-lg">
+            <h3 className="font-medium text-purple-900 mb-2 flex items-center">
+              <Percent className="w-4 h-4 mr-2" />
+              Image Choice Archetype Mapping
+            </h3>
+            <p className="text-sm text-purple-800">
+              Assign percentage weights to archetypes for each image option. Weights don't need to total 100%.
+            </p>
+          </div>
+
+          {errors.mapping && (
+            <p className="text-sm text-red-600 flex items-center">
+              <AlertCircle className="w-4 h-4 mr-1" />
+              {errors.mapping}
+            </p>
+          )}
+
+          {imageAssets.length === 0 ? (
+            <div className="text-center py-8 bg-gray-50 rounded-lg">
+              <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Images Added</h3>
+              <p className="text-gray-600">
+                Go back to the Images tab to add images before setting up archetype mappings.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {imageAssets.filter(asset => asset.key && asset.key.trim()).map((asset, assetIndex) => (
+                <div key={assetIndex} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center mb-4">
+                    <img 
+                      src={asset.url} 
+                      alt={asset.key}
+                      className="w-16 h-16 object-cover rounded-lg border border-gray-200 mr-4"
+                    />
+                    <div>
+                      <h4 className="font-medium text-gray-900">
+                        {asset.key}
+                      </h4>
+                      <p className="text-sm text-gray-500">Image {assetIndex + 1}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {ARCHETYPES.map(archetype => {
+                      const weight = getOptionWeight(asset.key, archetype);
+                      
+                      return (
+                        <div key={archetype} className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <label className="text-sm font-medium text-gray-700">
+                              {archetype}
+                            </label>
+                            <span className="text-sm text-gray-500">{weight}%</span>
+                          </div>
+                          
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="range"
+                              min="0"
+                              max="100"
+                              step="1"
+                              value={weight}
+                              onChange={(e) => {
+                                const newWeight = parseInt(e.target.value);
+                                updateOptionMapping(asset.key, archetype, newWeight);
+                              }}
+                              className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                              style={{
+                                background: `linear-gradient(to right, ${ARCHETYPE_DATA[archetype].color} 0%, ${ARCHETYPE_DATA[archetype].color} ${weight}%, #e5e7eb ${weight}%, #e5e7eb 100%)`
+                              }}
+                            />
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="1"
+                              value={weight}
+                              onChange={(e) => {
+                                const newWeight = parseInt(e.target.value) || 0;
+                                updateOptionMapping(asset.key, archetype, newWeight);
+                              }}
+                              className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
