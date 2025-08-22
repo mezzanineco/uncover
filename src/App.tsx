@@ -100,6 +100,14 @@ function AppContent() {
     await login(email);
   };
 
+  const handleLoginWithPassword = async (username: string, password: string) => {
+    await loginWithPassword(username, password);
+  };
+
+  const handleSignupWithPassword = async (username: string, email: string, password: string) => {
+    await signupWithPassword(username, email, password);
+  };
+
   const handleVerificationComplete = (userData: any) => {
     // The AuthProvider will handle the state update
     setCurrentState('landing');
@@ -119,12 +127,14 @@ function AppContent() {
         {authMode === 'signup' && (
           <SignupForm
             onSignup={handleSignup}
+            onSignupWithPassword={handleSignupWithPassword}
             onSwitchToLogin={() => setAuthMode('login')}
           />
         )}
         {authMode === 'login' && (
           <LoginForm
             onLogin={handleLogin}
+            onLoginWithPassword={handleLoginWithPassword}
             onSwitchToSignup={() => setAuthMode('signup')}
           />
         )}

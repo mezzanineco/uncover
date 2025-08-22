@@ -48,6 +48,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           id: 'user-1',
           email: 'user@example.com',
           name: 'John Doe',
+          username: 'johndoe',
+          username: 'johndoe',
           emailVerified: true,
           createdAt: new Date('2024-01-01'),
           lastLoginAt: new Date(),
