@@ -101,11 +101,11 @@ function AppContent() {
   };
 
   const handleLoginWithPassword = async (username: string, password: string) => {
-    await loginWithPassword(username, password);
+    await login(username, password);
   };
 
   const handleSignupWithPassword = async (username: string, email: string, password: string) => {
-    await signupWithPassword(username, email, password);
+    await signup(username, email, password);
   };
 
   const handleVerificationComplete = (userData: any) => {
