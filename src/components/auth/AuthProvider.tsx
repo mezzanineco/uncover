@@ -110,12 +110,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Mock validation - in production, this would validate against your backend
-      if (username === 'demo' && password === 'password') {
+      if ((username === 'demo' || username === 'super') && password === 'password') {
+        const isSuper = username === 'super';
+        
         const mockUser: User = {
-          id: 'user-1',
-          email: 'demo@example.com',
-          name: 'Demo User',
-          username: 'demo',
+          id: isSuper ? 'user-super' : 'user-demo',
+          email: isSuper ? 'super@example.com' : 'demo@example.com',
+          name: isSuper ? 'Super Admin' : 'Demo User',
+          username: username,
           emailVerified: true,
           createdAt: new Date('2024-01-01'),
           lastLoginAt: new Date(),
@@ -123,11 +125,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         };
 
         const mockOrganisation: Organisation = {
-          id: 'org-1',
-          name: 'Demo Corp',
-          slug: 'demo-corp',
+          id: isSuper ? 'org-super' : 'org-demo',
+          name: isSuper ? 'Super Corp' : 'Demo Corp',
+          slug: isSuper ? 'super-corp' : 'demo-corp',
           createdAt: new Date('2024-01-01'),
-          createdBy: 'user-1',
+          createdBy: isSuper ? 'user-super' : 'user-demo',
           settings: {
             allowGuestParticipants: true,
             requireConsent: true,
@@ -136,10 +138,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         };
 
         const mockMember: OrganisationMember = {
-          id: 'member-1',
-          userId: 'user-1',
-          organisationId: 'org-1',
-          role: 'user_admin',
+          id: isSuper ? 'member-super' : 'member-demo',
+          userId: isSuper ? 'user-super' : 'user-demo',
+          organisationId: isSuper ? 'org-super' : 'org-demo',
+          role: isSuper ? 'super_admin' : 'user_admin',
           status: 'active',
           joinedAt: new Date('2024-01-01'),
           lastActiveAt: new Date()
