@@ -465,6 +465,8 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
           Question Text *
         </label>
         <textarea
+         id="question-text"
+         name="questionText"
           value={formData.question}
           onChange={(e) => setFormData(prev => ({ ...prev, question: e.target.value }))}
           className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
@@ -1121,6 +1123,8 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
                   </div>
                 ) : (
                   <>
+             id="question-id"
+             name="questionId"
                     <Save className="w-4 h-4 mr-2" />
                     {isEditing ? 'Update Question' : 'Add Question'}
                   </>
@@ -1142,3 +1146,5 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
     </div>
   );
 }
+             id="question-category"
+             name="questionCategory"
