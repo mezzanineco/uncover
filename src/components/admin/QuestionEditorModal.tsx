@@ -171,36 +171,25 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
   };
 
   const addImageAsset = () => {
-    setImageAssets([...imageAssets, { key: '', url: '' }]);
+    setImageAssets([...imageAssets, {key: '', url: '', file: undefined}]);
   };
 
   const removeImageAsset = (index: number) => {
-    setImageAssets(prev => prev.filter((_, i) => i !== index));
+    if (imageAssets.length > 1) {
+      setImageAssets(prev => prev.filter((_, i) => i !== index));
+    }
   };
 
-  const updateImageAsset = (index: number, key: string, file?: File) => {
-    console.log('Updating image asset at index:', index, 'key:', key, 'file:', file?.name);
+  const updateImageAsset = (index: number, key: string) => {
     setImageAssets(prev => prev.map((asset, i) => 
       i === index ? { 
         ...asset, 
-        key: key || (file ? file.name.split('.')[0] : asset.key), 
-        file, 
-        url: file ? URL.createObjectURL(file) : asset.url 
+        key: key,
+        url: key ? getImageUrl(key) : ''
       } : asset
     ));
   };
 
-  const replaceImageAsset = (index: number, file: File) => {
-    console.log('Replacing image asset at index:', index, 'with file:', file.name);
-    setImageAssets(prev => prev.map((asset, i) => 
-      i === index ? { 
-        ...asset, 
-        file, 
-        url: URL.createObjectURL(file),
-        key: asset.key || file.name.split('.')[0].toLowerCase().replace(/[^a-z0-9]/g, '_')
-      } : asset
-    ));
-  };
 
   const handleArchetypeToggle = (archetype: ArchetypeName) => {
     setSelectedArchetypes(prev => 
@@ -357,7 +346,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
       const parsedOptions = formData.format === 'Slider' 
         ? ['1', '2', '3', '4', '5', '6', '7']
         : formData.format === 'Image Choice' && imageAssets.length > 0
-          ? imageAssets.map(asset => asset.key || 'unnamed')
+          ? imageAssets.filter(asset => asset.key && asset.key.trim()).map(asset => asset.key.trim())
           : options.filter(opt => opt.trim());
 
      console.log('📝 Generated parsedOptions:', parsedOptions);
