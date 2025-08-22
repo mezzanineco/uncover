@@ -302,6 +302,9 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
     setIsSubmitting(true);
 
     try {
+      console.log('Starting form submission for format:', formData.format);
+      console.log('Image assets before processing:', imageAssets);
+      
       // Process image assets for Image Choice questions
       let processedAssetKeys = '';
       if (formData.format === 'Image Choice' && imageAssets.length > 0) {
@@ -342,6 +345,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
           ? imageAssets.map(asset => asset.key || 'unnamed')
           : options.filter(opt => opt.trim());
 
+      console.log('Generated parsedOptions:', parsedOptions);
       const parsedMapping: Record<string, any[]> = {};
       
       if (formData.format === 'Slider') {
@@ -370,6 +374,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
         });
       }
 
+      console.log('Generated parsedMapping:', parsedMapping);
       const updatedQuestion: ParsedQuestion = {
         id: formData.id,
         question: formData.question,
@@ -388,10 +393,27 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
 
       console.log('Saving question with asset keys:', updatedQuestion.assetKeys);
       console.log('Full updated question:', updatedQuestion);
+      
+      // Validate the question object before saving
+      if (formData.format === 'Image Choice') {
+        if (!updatedQuestion.assetKeys || updatedQuestion.assetKeys === 'img:') {
+          throw new Error('Image Choice questions must have valid asset keys');
+        }
+        if (updatedQuestion.parsedOptions.length === 0) {
+          throw new Error('Image Choice questions must have parsed options');
+        }
+        if (Object.keys(updatedQuestion.parsedMapping).length === 0) {
+          throw new Error('Image Choice questions must have archetype mappings');
+        }
+      }
+      
       await new Promise(resolve => setTimeout(resolve, 500));
+      console.log('About to call onSave with question:', updatedQuestion);
       onSave(updatedQuestion);
+      console.log('onSave completed successfully');
     } catch (error) {
       console.error('Error saving question:', error);
+      setErrors({ submit: error instanceof Error ? error.message : 'Failed to save question' });
     } finally {
       setIsSubmitting(false);
     }
@@ -1105,6 +1127,15 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
                 )}
               </Button>
             </div>
+            
+            {errors.submit && (
+              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-600 flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-1" />
+                  {errors.submit}
+                </p>
+              </div>
+            )}
           </div>
         </form>
       </div>
