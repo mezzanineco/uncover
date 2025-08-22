@@ -318,7 +318,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
         // For slider, create mapping based on selected left/right archetypes
         if (sliderArchetypes.left && sliderArchetypes.right) {
           for (let i = 1; i <= 7; i++) {
-            const leftWeight = Math.round(((8 - i) / 6) * 100); // 100% at 1, 0% at 7
+            const leftWeight = Math.round(((7 - i) / 6) * 100); // 100% at 1, 0% at 7
             const rightWeight = Math.round(((i - 1) / 6) * 100); // 0% at 1, 100% at 7
             
             parsedMapping[i.toString()] = [];
