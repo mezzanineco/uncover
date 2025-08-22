@@ -99,10 +99,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
       // Parse image assets if present
       if (question.assetKeys && question.format === 'Image Choice') {
         const keys = question.assetKeys.replace('img:', '').split(',');
-        setImageAssets(keys.map(key => ({ 
-          key: key.trim(), 
-          url: getImageUrl ? getImageUrl(key.trim()) : `https://images.pexels.com/photos/1029599/pexels-photo-1029599.jpeg?auto=compress&cs=tinysrgb&w=400`
-        })));
+        setImageAssets(keys.map(key => ({ key: key.trim(), url: '' })));
       }
     } else {
       // Reset for new question
@@ -171,6 +168,17 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
   const updateImageAsset = (index: number, key: string, file?: File) => {
     setImageAssets(prev => prev.map((asset, i) => 
       i === index ? { ...asset, key, file, url: file ? URL.createObjectURL(file) : asset.url } : asset
+    ));
+  };
+
+  const replaceImageAsset = (index: number, file: File) => {
+    setImageAssets(prev => prev.map((asset, i) => 
+      i === index ? { 
+        ...asset, 
+        file, 
+        url: URL.createObjectURL(file),
+        key: asset.key || file.name.split('.')[0]
+      } : asset
     ));
   };
 
@@ -459,6 +467,40 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
                   </button>
                 </div>
                 
+                {/* Current Image Display */}
+                {asset.url && (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Current Image
+                    </label>
+                    <div className="relative group">
+                      <img 
+                        src={asset.url} 
+                        alt={asset.key || `Image ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                      />
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded-lg flex items-center justify-center">
+                        <label className="cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                          <div className="bg-white rounded-lg px-3 py-2 text-sm font-medium text-gray-700 shadow-lg hover:bg-gray-50">
+                            Replace Image
+                          </div>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                replaceImageAsset(index, file);
+                              }
+                            }}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 <div className="space-y-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -473,33 +515,30 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
                     />
                   </div>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Upload Image
-                    </label>
-                    <div className="flex items-center space-x-2">
-                      <label className="cursor-pointer flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-                        <Upload className="w-4 h-4 mr-2" />
-                        Choose File
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              updateImageAsset(index, asset.key || file.name.split('.')[0], file);
-                            }
-                          }}
-                          className="hidden"
-                        />
+                  {!asset.url && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Upload Image
                       </label>
-                      {asset.url && (
-                        <div className="w-12 h-12 border border-gray-200 rounded overflow-hidden">
-                          <img src={asset.url} alt={asset.key} className="w-full h-full object-cover" />
-                        </div>
-                      )}
+                      <div className="flex items-center space-x-2">
+                        <label className="cursor-pointer flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                          <Upload className="w-4 h-4 mr-2" />
+                          Choose File
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                updateImageAsset(index, asset.key || file.name.split('.')[0], file);
+                              }
+                            }}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             ))}
