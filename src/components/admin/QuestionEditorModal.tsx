@@ -53,6 +53,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
   const [selectedArchetypes, setSelectedArchetypes] = useState<ArchetypeName[]>([]);
   const [sliderArchetypes, setSliderArchetypes] = useState<{left: ArchetypeName | '', right: ArchetypeName | ''}>({left: '', right: ''});
   const [imageAssetKeys, setImageAssetKeys] = useState<string[]>(['']);
+  const [imageAssets, setImageAssets] = useState<{key: string, url?: string, file?: File}[]>([{key: '', url: '', file: undefined}]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<'basic' | 'options' | 'mapping'>('basic');
@@ -107,7 +108,9 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
       // Parse image assets if present
       if (question.assetKeys && question.format === 'Image Choice') {
         const keys = question.assetKeys.replace('img:', '').split(',');
-        setImageAssetKeys(keys.map(key => key.trim()));
+        const assetKeys = keys.map(key => key.trim());
+        setImageAssetKeys(assetKeys);
+        setImageAssets(assetKeys.map(key => ({key, url: getImageUrl(key)})));
       }
     } else {
       // Reset for new question
@@ -125,7 +128,8 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
       setOptionMappings([]);
       setSelectedArchetypes([]);
       setSliderArchetypes({left: '', right: ''});
-      setImageAssetKeys([]);
+      setImageAssetKeys(['']);
+      setImageAssets([{key: '', url: '', file: undefined}]);
     }
     setErrors({});
     setActiveTab('basic');
