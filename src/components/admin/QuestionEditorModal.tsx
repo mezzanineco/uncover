@@ -723,7 +723,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
                             type="range"
                             min="0"
                             max="100"
-                            step="5"
+                            step="1"
                             value={weight}
                             onChange={(e) => {
                               const newWeight = parseInt(e.target.value);
@@ -746,7 +746,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
                             type="number"
                             min="0"
                             max="100"
-                            step="5"
+                            step="1"
                             value={weight}
                             onChange={(e) => {
                               const newWeight = parseInt(e.target.value) || 0;
