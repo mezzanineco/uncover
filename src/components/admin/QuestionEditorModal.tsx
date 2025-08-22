@@ -161,6 +161,12 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
       }
       } else {
         const data = await response.json();
+    } catch (error) {
+      setAvailableImages([]);
+      setImageError('API server not running. Start it with: npm run start-api');
+    } finally {
+      setIsLoadingImages(false);
+    }
         setAvailableImages(data.images || []);
     } finally {
       setIsLoadingImages(false);
