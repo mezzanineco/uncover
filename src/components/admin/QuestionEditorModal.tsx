@@ -1,10 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, AlertCircle, Plus, Trash2, Upload, Image as ImageIcon, Percent, Info } from 'lucide-react';
+import { X, Save, AlertCircle, Plus, Trash2, Upload, Image as ImageIcon, Percent, Info, RefreshCw, FolderOpen } from 'lucide-react';
 import { Button } from '../common/Button';
 import type { ParsedQuestion, ArchetypeName } from '../../types';
 import { ARCHETYPES } from '../../types';
 import { ARCHETYPE_DATA } from '../../data/archetypes';
 import { getImageUrl } from '../../data/imageAssets';
+
+interface ImageFile {
+  filename: string;
+  path: string;
+  size: number;
+  modified: string;
+}
 
 interface QuestionEditorModalProps {
   isOpen: boolean;
@@ -55,7 +62,10 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
   const [imageAssets, setImageAssets] = useState<{key: string, url: string}[]>([{key: '', url: ''}]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<'basic' | 'options' | 'mapping'>('basic');
+  const [activeTab, setActiveTab] = useState<'basic' | 'options' | 'mapping' | 'library'>('basic');
+  const [availableImages, setAvailableImages] = useState<ImageFile[]>([]);
+  const [isLoadingImages, setIsLoadingImages] = useState(false);
+  const [selectedImageForInput, setSelectedImageForInput] = useState<number | null>(null);
 
   const isEditing = !!question;
 
@@ -131,6 +141,47 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
     setErrors({});
     setActiveTab('basic');
   }, [question, isOpen]);
+
+  // Load available images when library tab is opened
+  useEffect(() => {
+    if (activeTab === 'library' && isOpen) {
+      loadAvailableImages();
+    }
+  }, [activeTab, isOpen]);
+
+  const loadAvailableImages = async () => {
+    setIsLoadingImages(true);
+    try {
+      const response = await fetch('/api/images');
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableImages(data.images || []);
+      } else {
+        console.error('Failed to load images:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error loading images:', error);
+    } finally {
+      setIsLoadingImages(false);
+    }
+  };
+
+  const handleImageSelect = (imagePath: string, inputIndex: number) => {
+    const newAssets = [...imageAssets];
+    newAssets[inputIndex] = { key: imagePath, url: imagePath };
+    setImageAssets(newAssets);
+    setSelectedImageForInput(null);
+    // Switch back to options tab to show the selected image
+    setActiveTab('options');
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
 
   // Update options when format changes
   useEffect(() => {
@@ -583,21 +634,35 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Image Path *
                     </label>
-                    <input
-                      type="text"
-                      value={asset.key}
-                      onChange={(e) => updateImageAsset(index, e.target.value)}
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                        !asset.key?.trim() ? 'border-red-300' : 'border-gray-300'
-                      }`}
-                      placeholder="e.g., /images/crown.png"
-                      required
-                    />
+                    <div className="flex space-x-2">
+                      <input
+                        type="text"
+                        value={asset.key}
+                        onChange={(e) => updateImageAsset(index, e.target.value)}
+                        className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                          !asset.key?.trim() ? 'border-red-300' : 'border-gray-300'
+                        }`}
+                        placeholder="e.g., /images/crown.png"
+                        required
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedImageForInput(index);
+                          setActiveTab('library');
+                        }}
+                      >
+                        <FolderOpen className="w-4 h-4 mr-1" />
+                        Browse
+                      </Button>
+                    </div>
                     {!asset.key?.trim() && Object.keys(errors).length > 0 && (
                       <p className="text-xs text-red-600 mt-1">Image path is required</p>
                     )}
                     <p className="text-xs text-gray-500 mt-1">
-                      Enter the path to your image in the public directory (e.g., /images/my-image.png)
+                      Enter the path to your image or click "Browse" to select from available images
                     </p>
                   </div>
                 </div>
@@ -654,6 +719,135 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
               </p>
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+
+  const renderLibraryTab = () => (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-medium text-gray-900">Image Library</h3>
+          <p className="text-sm text-gray-600">
+            {selectedImageForInput !== null 
+              ? `Select an image for input field ${selectedImageForInput + 1}`
+              : 'Browse available images in your project'
+            }
+          </p>
+        </div>
+        <div className="flex space-x-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={loadAvailableImages}
+            disabled={isLoadingImages}
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isLoadingImages ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {/* Upload Instructions */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-start">
+          <Upload className="w-5 h-5 text-blue-600 mr-3 mt-0.5" />
+          <div>
+            <h4 className="font-medium text-blue-900 mb-1">Adding New Images</h4>
+            <p className="text-sm text-blue-800 mb-2">
+              To add new images to your library:
+            </p>
+            <ol className="text-sm text-blue-800 list-decimal list-inside space-y-1">
+              <li>Drag and drop image files into the <code className="bg-blue-100 px-1 rounded">public/images</code> directory in the file explorer</li>
+              <li>Click the "Refresh" button above to see your new images</li>
+              <li>Supported formats: PNG, JPG, JPEG, GIF, WebP, SVG</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      {/* Image Grid */}
+      {isLoadingImages ? (
+        <div className="flex items-center justify-center py-12">
+          <RefreshCw className="w-6 h-6 animate-spin text-gray-400 mr-2" />
+          <span className="text-gray-600">Loading images...</span>
+        </div>
+      ) : availableImages.length === 0 ? (
+        <div className="text-center py-12">
+          <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No images found</h3>
+          <p className="text-gray-600 mb-4">
+            Add some images to the <code className="bg-gray-100 px-1 rounded">public/images</code> directory to get started.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={loadAvailableImages}
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Check Again
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-h-96 overflow-y-auto">
+          {availableImages.map((image, index) => (
+            <div
+              key={image.filename}
+              className={`
+                relative border-2 rounded-lg overflow-hidden cursor-pointer transition-all hover:shadow-md
+                ${selectedImageForInput !== null ? 'hover:border-blue-500' : 'hover:border-gray-300'}
+                border-gray-200
+              `}
+              onClick={() => {
+                if (selectedImageForInput !== null) {
+                  handleImageSelect(image.path, selectedImageForInput);
+                }
+              }}
+            >
+              <div className="aspect-square">
+                <img
+                  src={image.path}
+                  alt={image.filename}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              </div>
+              <div className="p-2 bg-white">
+                <p className="text-xs font-medium text-gray-900 truncate" title={image.filename}>
+                  {image.filename}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {formatFileSize(image.size)}
+                </p>
+              </div>
+              {selectedImageForInput !== null && (
+                <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center">
+                  <div className="bg-blue-500 text-white px-2 py-1 rounded text-xs font-medium">
+                    Select
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {selectedImageForInput !== null && (
+        <div className="flex justify-center">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setSelectedImageForInput(null);
+              setActiveTab('options');
+            }}
+          >
+            Cancel Selection
+          </Button>
         </div>
       )}
     </div>
@@ -985,7 +1179,8 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
             {[
               { id: 'basic', label: 'Basic Info', icon: Info },
               { id: 'options', label: formData.format === 'Image Choice' ? 'Images' : 'Options', icon: formData.format === 'Image Choice' ? ImageIcon : Plus },
-              { id: 'mapping', label: 'Archetype Mapping', icon: Percent }
+              { id: 'mapping', label: 'Archetype Mapping', icon: Percent },
+              ...(formData.format === 'Image Choice' ? [{ id: 'library', label: 'Image Library', icon: FolderOpen }] : [])
             ].map(tab => {
               const Icon = tab.icon;
               return (
@@ -1013,6 +1208,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
             {activeTab === 'basic' && renderBasicTab()}
             {activeTab === 'options' && renderOptionsTab()}
             {activeTab === 'mapping' && renderMappingTab()}
+            {activeTab === 'library' && renderLibraryTab()}
           </div>
 
           {/* Action Buttons */}
@@ -1023,7 +1219,9 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
                   type="button"
                   variant="outline"
                   onClick={() => {
-                    const tabs = ['basic', 'options', 'mapping'];
+                    const tabs = formData.format === 'Image Choice' 
+                      ? ['basic', 'options', 'mapping', 'library']
+                      : ['basic', 'options', 'mapping'];
                     const currentIndex = tabs.indexOf(activeTab);
                     if (currentIndex > 0) {
                       setActiveTab(tabs[currentIndex - 1] as any);
@@ -1033,12 +1231,15 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
                   Previous
                 </Button>
               )}
-              {activeTab !== 'mapping' && (
+              {activeTab !== 'mapping' && 
+               !(formData.format === 'Image Choice' && activeTab === 'library') && (
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => {
-                    const tabs = ['basic', 'options', 'mapping'];
+                    const tabs = formData.format === 'Image Choice' 
+                      ? ['basic', 'options', 'mapping', 'library']
+                      : ['basic', 'options', 'mapping'];
                     const currentIndex = tabs.indexOf(activeTab);
                     if (currentIndex < tabs.length - 1) {
                       setActiveTab(tabs[currentIndex + 1] as any);
