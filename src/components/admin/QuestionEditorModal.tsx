@@ -654,7 +654,92 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
 
   const renderMappingTab = () => (
     <div className="space-y-6">
-      {(formData.category === 'Clarifier' || formData.category === 'Validator') ? (
+      {formData.format === 'Slider' ? (
+        <div className="space-y-6">
+          <div className="bg-purple-50 p-4 rounded-lg">
+            <h3 className="font-medium text-purple-900 mb-2 flex items-center">
+              <Percent className="w-4 h-4 mr-2" />
+              Slider Archetype Mapping
+            </h3>
+            <p className="text-sm text-purple-800">
+              Select two archetypes that represent opposite ends of the slider scale. 
+              Users sliding left will score higher on the left archetype, sliding right will score higher on the right archetype.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-gray-700">
+                Left Side Archetype (Value 1)
+              </label>
+              <select
+                value={sliderArchetypes.left}
+                onChange={(e) => setSliderArchetypes(prev => ({...prev, left: e.target.value as ArchetypeName}))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select archetype...</option>
+                {ARCHETYPES.map(archetype => (
+                  <option key={archetype} value={archetype} disabled={archetype === sliderArchetypes.right}>
+                    {archetype}
+                  </option>
+                ))}
+              </select>
+              {sliderArchetypes.left && (
+                <div className="p-3 rounded-lg" style={{ backgroundColor: ARCHETYPE_DATA[sliderArchetypes.left].color }}>
+                  <div className="font-medium text-gray-900">{sliderArchetypes.left}</div>
+                  <div className="text-sm text-gray-700">{ARCHETYPE_DATA[sliderArchetypes.left].description}</div>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-gray-700">
+                Right Side Archetype (Value 7)
+              </label>
+              <select
+                value={sliderArchetypes.right}
+                onChange={(e) => setSliderArchetypes(prev => ({...prev, right: e.target.value as ArchetypeName}))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select archetype...</option>
+                {ARCHETYPES.map(archetype => (
+                  <option key={archetype} value={archetype} disabled={archetype === sliderArchetypes.left}>
+                    {archetype}
+                  </option>
+                ))}
+              </select>
+              {sliderArchetypes.right && (
+                <div className="p-3 rounded-lg" style={{ backgroundColor: ARCHETYPE_DATA[sliderArchetypes.right].color }}>
+                  <div className="font-medium text-gray-900">{sliderArchetypes.right}</div>
+                  <div className="text-sm text-gray-700">{ARCHETYPE_DATA[sliderArchetypes.right].description}</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {sliderArchetypes.left && sliderArchetypes.right && (
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h4 className="font-medium text-gray-900 mb-3">Preview: Scoring Distribution</h4>
+              <div className="space-y-2">
+                {[1, 2, 3, 4, 5, 6, 7].map(value => {
+                  const leftWeight = Math.round(((8 - value) / 6) * 100);
+                  const rightWeight = Math.round(((value - 1) / 6) * 100);
+                  return (
+                    <div key={value} className="flex items-center justify-between text-sm">
+                      <span className="font-medium">Value {value}:</span>
+                      <span>
+                        {leftWeight > 0 && `${sliderArchetypes.left} ${leftWeight}%`}
+                        {leftWeight > 0 && rightWeight > 0 && ' + '}
+                        {rightWeight > 0 && `${sliderArchetypes.right} ${rightWeight}%`}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (formData.category === 'Clarifier' || formData.category === 'Validator') ? (
         <div className="space-y-4">
           <div className="bg-blue-50 p-4 rounded-lg">
             <h3 className="font-medium text-blue-900 mb-2">
@@ -711,17 +796,15 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
           )}
 
           <div className="space-y-6">
-            {(formData.format === 'Slider' ? ['Slider Response'] : options.filter(opt => opt.trim())).map((option, optionIndex) => (
+            {options.filter(opt => opt.trim()).map((option, optionIndex) => (
               <div key={optionIndex} className="border border-gray-200 rounded-lg p-4">
                 <h4 className="font-medium text-gray-900 mb-4">
-                  {formData.format === 'Slider' ? 'All Slider Values (1-7)' : `"${option}"`}
+                  {`"${option}"`}
                 </h4>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {ARCHETYPES.map(archetype => {
-                    const weight = formData.format === 'Slider' 
-                      ? (selectedArchetypes.includes(archetype) ? 100 : 0)
-                      : getOptionWeight(option, archetype);
+                    const weight = getOptionWeight(option, archetype);
                     
                     return (
                       <div key={archetype} className="space-y-2">
@@ -741,15 +824,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
                             value={weight}
                             onChange={(e) => {
                               const newWeight = parseInt(e.target.value);
-                              if (formData.format === 'Slider') {
-                                if (newWeight > 0 && !selectedArchetypes.includes(archetype)) {
-                                  setSelectedArchetypes(prev => [...prev, archetype]);
-                                } else if (newWeight === 0 && selectedArchetypes.includes(archetype)) {
-                                  setSelectedArchetypes(prev => prev.filter(a => a !== archetype));
-                                }
-                              } else {
-                                updateOptionMapping(option, archetype, newWeight);
-                              }
+                              updateOptionMapping(option, archetype, newWeight);
                             }}
                             className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                             style={{
@@ -764,15 +839,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
                             value={weight}
                             onChange={(e) => {
                               const newWeight = parseInt(e.target.value) || 0;
-                              if (formData.format === 'Slider') {
-                                if (newWeight > 0 && !selectedArchetypes.includes(archetype)) {
-                                  setSelectedArchetypes(prev => [...prev, archetype]);
-                                } else if (newWeight === 0 && selectedArchetypes.includes(archetype)) {
-                                  setSelectedArchetypes(prev => prev.filter(a => a !== archetype));
-                                }
-                              } else {
-                                updateOptionMapping(option, archetype, newWeight);
-                              }
+                              updateOptionMapping(option, archetype, newWeight);
                             }}
                             className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                           />
