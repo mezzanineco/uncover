@@ -280,8 +280,14 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
       const hasValidImageMappings = imageAssets.some(asset => {
         if (!asset.key) return false;
         const mapping = optionMappings.find(m => m.option === asset.key);
+        console.log(`🔍 Checking mapping for asset key "${asset.key}":`, mapping);
         return mapping && mapping.weights.length > 0;
       });
+
+      console.log('🖼️ Image Choice validation results:');
+      console.log('- Image assets with keys:', imageAssets.filter(asset => asset.key));
+      console.log('- Option mappings:', optionMappings);
+      console.log('- Has valid mappings:', hasValidImageMappings);
 
       if (imageAssets.length > 0 && !hasValidImageMappings) {
         newErrors.mapping = 'At least one image must have archetype mappings';
