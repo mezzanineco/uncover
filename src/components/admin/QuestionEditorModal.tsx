@@ -66,6 +66,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
   const [availableImages, setAvailableImages] = useState<ImageFile[]>([]);
   const [isLoadingImages, setIsLoadingImages] = useState(false);
   const [selectedImageForInput, setSelectedImageForInput] = useState<number | null>(null);
+  const [imageError, setImageError] = useState<string>('');
 
   const isEditing = !!question;
 
@@ -158,22 +159,12 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
         setAvailableImages(data.images || []);
       } else {
         console.error('Failed to load images:', response.statusText);
+        setImageError('API server not running. Please start it with: npm run start-api');
+        setAvailableImages([]);
       }
-      } else {
-        const data = await response.json();
     } catch (error) {
       setImageError('API server not running. Please start it with: npm run start-api');
       setAvailableImages([]);
-    } finally {
-      setIsLoadingImages(false);
-    }
-    } catch (error) {
-      setAvailableImages([]);
-      setImageError('API server not running. Start it with: npm run start-api');
-    } finally {
-      setIsLoadingImages(false);
-    }
-        setAvailableImages(data.images || []);
     } finally {
       setIsLoadingImages(false);
     }
@@ -449,8 +440,6 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
        console.log('✅ Image Choice validation passed');
       }
       onSave(updatedQuestion);
-      setImageError('API server not running. Please start it with: npm run start-api');
-      setAvailableImages([]);
     } catch (error) {
      console.error('❌ Error saving question:', error);
      console.log('=== FORM SUBMISSION FAILED ===');
