@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start-api": "node server.js"
   },
   "dependencies": {
     "@types/papaparse": "^5.3.16",
