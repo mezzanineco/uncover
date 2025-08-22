@@ -45,11 +45,6 @@ function AppContent() {
   }
 
   if (isAuthenticated && user && organisation && member) {
-    // Route super admins to the admin panel
-    if (member.role === 'super_admin') {
-      return <AdminDashboard />;
-    }
-    
     if (currentState === 'assessment') {
       return (
         <AssessmentFlow
@@ -80,6 +75,11 @@ function AppContent() {
     );
   }
 
+  // Direct admin access for testing (no login required)
+  if (currentState === 'admin') {
+    return <AdminDashboard />;
+  }
+
   const handleStartAssessment = () => {
     if (!isAuthenticated) {
       setCurrentState('auth');
@@ -95,7 +95,8 @@ function AppContent() {
 
   const handleRestart = () => {
     setAssessmentResult(null);
-    setCurrentState('landing');
+    // Skip auth for testing - go directly to admin dashboard
+    setCurrentState('admin');
   };
 
   const handleSignup = async (email: string) => {

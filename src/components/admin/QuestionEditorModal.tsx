@@ -265,6 +265,38 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
     setIsSubmitting(true);
 
     try {
+      // Process image assets for Image Choice questions
+      let processedAssetKeys = '';
+      if (formData.format === 'Image Choice' && imageAssets.length > 0) {
+        console.log('Processing image assets:', imageAssets);
+        
+        const processedKeys = await Promise.all(
+          imageAssets.map(async (asset) => {
+            if (asset.file) {
+              // Simulate file upload for new files
+              console.log('Uploading new file:', asset.file.name);
+              await new Promise(resolve => setTimeout(resolve, 200));
+              
+              // Generate asset key from filename if not provided
+              const assetKey = asset.key || asset.file.name
+                .split('.')[0]
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '_');
+              
+              console.log('Generated asset key:', assetKey);
+              return assetKey;
+            } else {
+              // Keep existing asset key
+              console.log('Keeping existing asset key:', asset.key);
+              return asset.key;
+            }
+          })
+        );
+        
+        processedAssetKeys = `img:${processedKeys.join(',')}`;
+        console.log('Final asset keys string:', processedAssetKeys);
+      }
+
       // Convert form data back to ParsedQuestion
       const parsedOptions = formData.format === 'Slider' 
         ? ['1', '2', '3', '4', '5', '6', '7']
@@ -298,9 +330,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
         parsedMapping,
         category: formData.category,
         overlapGroup: formData.overlapGroup || undefined,
-        assetKeys: formData.format === 'Image Choice' && imageAssets.length > 0 
-          ? `img:${imageAssets.map(a => a.key).join(',')}`
-          : undefined,
+        assetKeys: processedAssetKeys || undefined,
         notes: formData.notes || undefined,
         required: true,
         maxSelections: formData.format === 'Word Choice (Multi)' ? formData.maxSelections : undefined,
@@ -308,6 +338,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
         usedInSessions: question?.usedInSessions || false
       };
 
+      console.log('Saving question with asset keys:', updatedQuestion.assetKeys);
       await new Promise(resolve => setTimeout(resolve, 500));
       onSave(updatedQuestion);
     } catch (error) {
