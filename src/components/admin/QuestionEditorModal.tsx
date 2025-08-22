@@ -51,6 +51,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
   const [options, setOptions] = useState<string[]>(['']);
   const [optionMappings, setOptionMappings] = useState<OptionMapping[]>([]);
   const [selectedArchetypes, setSelectedArchetypes] = useState<ArchetypeName[]>([]);
+  const [sliderArchetypes, setSliderArchetypes] = useState<{left: ArchetypeName | '', right: ArchetypeName | ''}>({left: '', right: ''});
   const [imageAssets, setImageAssets] = useState<Array<{key: string, url: string, file?: File}>>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -95,6 +96,12 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
           weights.forEach(w => archetypes.add(w.archetype));
         });
         setSelectedArchetypes(Array.from(archetypes));
+      } else if (question.format === 'Slider') {
+        // Extract slider archetypes from mapping
+        const mapping = question.parsedMapping || {};
+        const leftArchetype = mapping['1']?.[0]?.archetype || '';
+        const rightArchetype = mapping['7']?.[0]?.archetype || '';
+        setSliderArchetypes({left: leftArchetype, right: rightArchetype});
       }
 
       // Parse image assets if present
@@ -117,6 +124,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
       setOptions(['']);
       setOptionMappings([]);
       setSelectedArchetypes([]);
+      setSliderArchetypes({left: '', right: ''});
       setImageAssets([]);
     }
     setErrors({});
@@ -307,15 +315,21 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
       const parsedMapping: Record<string, any[]> = {};
       
       if (formData.format === 'Slider') {
-        // For slider, apply weights to all values
-        selectedArchetypes.forEach(archetype => {
+        // For slider, create mapping based on selected left/right archetypes
+        if (sliderArchetypes.left && sliderArchetypes.right) {
           for (let i = 1; i <= 7; i++) {
-            if (!parsedMapping[i.toString()]) {
-              parsedMapping[i.toString()] = [];
+            const leftWeight = Math.round(((8 - i) / 6) * 100); // 100% at 1, 0% at 7
+            const rightWeight = Math.round(((i - 1) / 6) * 100); // 0% at 1, 100% at 7
+            
+            parsedMapping[i.toString()] = [];
+            if (leftWeight > 0) {
+              parsedMapping[i.toString()].push({ archetype: sliderArchetypes.left, weight: leftWeight });
             }
-            parsedMapping[i.toString()].push({ archetype, weight: 1 });
+            if (rightWeight > 0) {
+              parsedMapping[i.toString()].push({ archetype: sliderArchetypes.right, weight: rightWeight });
+            }
           }
-        });
+        }
       } else {
         optionMappings.forEach(mapping => {
           if (mapping.weights.length > 0) {
