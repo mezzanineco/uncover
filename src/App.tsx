@@ -8,6 +8,7 @@ import { UserDashboard } from './components/dashboard/UserDashboard';
 import { LandingPage } from './components/layout/LandingPage';
 import { AssessmentFlow } from './components/assessment/AssessmentFlow';
 import { ResultsDashboard } from './components/results/ResultsDashboard';
+import { AdminDashboard } from './components/admin/AdminDashboard';
 import { ASSESSMENT_CONFIG } from './data/questions';
 import type { AssessmentResult } from './types';
 
@@ -44,6 +45,11 @@ function AppContent() {
   }
 
   if (isAuthenticated && user && organisation && member) {
+    // Route super admins to the admin panel
+    if (member.role === 'super_admin') {
+      return <AdminDashboard />;
+    }
+    
     if (currentState === 'assessment') {
       return (
         <AssessmentFlow
