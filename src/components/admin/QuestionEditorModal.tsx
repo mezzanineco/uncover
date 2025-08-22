@@ -295,16 +295,21 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+   console.log('=== FORM SUBMISSION STARTED ===');
+   console.log('Question format:', formData.format);
+   console.log('Form data:', formData);
+   console.log('Image assets:', imageAssets);
+   console.log('Option mappings:', optionMappings);
+   
     if (!validateForm()) {
+     console.log('❌ Validation failed');
       return;
     }
 
+   console.log('✅ Validation passed');
     setIsSubmitting(true);
 
     try {
-      console.log('Starting form submission for format:', formData.format);
-      console.log('Image assets before processing:', imageAssets);
-      
       // Process image assets for Image Choice questions
       let processedAssetKeys = '';
       if (formData.format === 'Image Choice' && imageAssets.length > 0) {
@@ -345,13 +350,14 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
           ? imageAssets.map(asset => asset.key || 'unnamed')
           : options.filter(opt => opt.trim());
 
-      console.log('Generated parsedOptions:', parsedOptions);
+     console.log('📝 Generated parsedOptions:', parsedOptions);
+     
       const parsedMapping: Record<string, any[]> = {};
       
       if (formData.format === 'Slider') {
         // For slider, create mapping based on selected left/right archetypes
         if (sliderArchetypes.left && sliderArchetypes.right) {
-          console.log('Creating slider mapping - Left:', sliderArchetypes.left, 'Right:', sliderArchetypes.right);
+         console.log('🎚️ Creating slider mapping - Left:', sliderArchetypes.left, 'Right:', sliderArchetypes.right);
           for (let i = 1; i <= 7; i++) {
             const leftWeight = Math.round(((7 - i) / 6) * 100); // 100% at 1, 0% at 7
             const rightWeight = Math.round(((i - 1) / 6) * 100); // 0% at 1, 100% at 7
@@ -364,7 +370,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
               parsedMapping[i.toString()].push({ archetype: sliderArchetypes.right, weight: rightWeight });
             }
           }
-          console.log('Generated slider mapping:', parsedMapping);
+         console.log('🎚️ Generated slider mapping:', parsedMapping);
         }
       } else {
         optionMappings.forEach(mapping => {
@@ -374,7 +380,8 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
         });
       }
 
-      console.log('Generated parsedMapping:', parsedMapping);
+     console.log('🗺️ Generated parsedMapping:', parsedMapping);
+     
       const updatedQuestion: ParsedQuestion = {
         id: formData.id,
         question: formData.question,
@@ -391,28 +398,34 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
         usedInSessions: question?.usedInSessions || false
       };
 
-      console.log('Saving question with asset keys:', updatedQuestion.assetKeys);
-      console.log('Full updated question:', updatedQuestion);
+     console.log('💾 Final question object to save:', JSON.stringify(updatedQuestion, null, 2));
       
       // Validate the question object before saving
       if (formData.format === 'Image Choice') {
+       console.log('🖼️ Validating Image Choice question...');
         if (!updatedQuestion.assetKeys || updatedQuestion.assetKeys === 'img:') {
+         console.log('❌ Asset keys validation failed:', updatedQuestion.assetKeys);
           throw new Error('Image Choice questions must have valid asset keys');
         }
         if (updatedQuestion.parsedOptions.length === 0) {
+         console.log('❌ Parsed options validation failed:', updatedQuestion.parsedOptions);
           throw new Error('Image Choice questions must have parsed options');
         }
         if (Object.keys(updatedQuestion.parsedMapping).length === 0) {
+         console.log('❌ Parsed mapping validation failed:', updatedQuestion.parsedMapping);
           throw new Error('Image Choice questions must have archetype mappings');
         }
+       console.log('✅ Image Choice validation passed');
       }
       
+     console.log('🚀 Calling onSave...');
       await new Promise(resolve => setTimeout(resolve, 500));
-      console.log('About to call onSave with question:', updatedQuestion);
       onSave(updatedQuestion);
-      console.log('onSave completed successfully');
+     console.log('✅ onSave completed successfully');
+     console.log('=== FORM SUBMISSION COMPLETED ===');
     } catch (error) {
-      console.error('Error saving question:', error);
+     console.error('❌ Error saving question:', error);
+     console.log('=== FORM SUBMISSION FAILED ===');
       setErrors({ submit: error instanceof Error ? error.message : 'Failed to save question' });
     } finally {
       setIsSubmitting(false);
