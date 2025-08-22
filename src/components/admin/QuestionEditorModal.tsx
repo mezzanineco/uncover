@@ -4,6 +4,7 @@ import { Button } from '../common/Button';
 import type { ParsedQuestion, ArchetypeName } from '../../types';
 import { ARCHETYPES } from '../../types';
 import { ARCHETYPE_DATA } from '../../data/archetypes';
+import { getImageUrl } from '../../data/imageAssets';
 
 interface QuestionEditorModalProps {
   isOpen: boolean;
@@ -99,7 +100,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
       // Parse image assets if present
       if (question.assetKeys && question.format === 'Image Choice') {
         const keys = question.assetKeys.replace('img:', '').split(',');
-        setImageAssets(keys.map(key => ({ key: key.trim(), url: '' })));
+        setImageAssets(keys.map(key => ({ key: key.trim(), url: getImageUrl(key.trim()) })));
       }
     } else {
       // Reset for new question
