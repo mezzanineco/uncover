@@ -167,6 +167,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
   };
 
   const updateImageAsset = (index: number, key: string, file?: File) => {
+    console.log('Updating image asset at index:', index, 'key:', key, 'file:', file?.name);
     setImageAssets(prev => prev.map((asset, i) => 
       i === index ? { 
         ...asset, 
@@ -178,6 +179,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
   };
 
   const replaceImageAsset = (index: number, file: File) => {
+    console.log('Replacing image asset at index:', index, 'with file:', file.name);
     setImageAssets(prev => prev.map((asset, i) => 
       i === index ? { 
         ...asset, 
@@ -339,6 +341,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
       };
 
       console.log('Saving question with asset keys:', updatedQuestion.assetKeys);
+      console.log('Full updated question:', updatedQuestion);
       await new Promise(resolve => setTimeout(resolve, 500));
       onSave(updatedQuestion);
     } catch (error) {
