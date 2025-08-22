@@ -52,7 +52,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
   const [optionMappings, setOptionMappings] = useState<OptionMapping[]>([]);
   const [selectedArchetypes, setSelectedArchetypes] = useState<ArchetypeName[]>([]);
   const [sliderArchetypes, setSliderArchetypes] = useState<{left: ArchetypeName | '', right: ArchetypeName | ''}>({left: '', right: ''});
-  const [imageAssets, setImageAssets] = useState<Array<{key: string, url: string, file?: File}>>([]);
+  const [imageAssetKeys, setImageAssetKeys] = useState<string[]>(['']);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<'basic' | 'options' | 'mapping'>('basic');
@@ -839,35 +839,38 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
             </p>
           )}
 
-          {imageAssets.length === 0 ? (
+          {imageAssetKeys.length === 0 || imageAssetKeys.every(key => !key.trim()) ? (
             <div className="text-center py-8 bg-gray-50 rounded-lg">
               <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Images Added</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Asset Keys Added</h3>
               <p className="text-gray-600">
-                Go back to the Images tab to add images before setting up archetype mappings.
+                Go back to the Images tab to add asset keys before setting up archetype mappings.
               </p>
             </div>
           ) : (
             <div className="space-y-6">
-              {imageAssets.filter(asset => asset.key && asset.key.trim()).map((asset, assetIndex) => (
-                <div key={assetIndex} className="border border-gray-200 rounded-lg p-4">
+              {imageAssetKeys.filter(key => key.trim()).map((assetKey, keyIndex) => (
+                <div key={keyIndex} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex items-center mb-4">
                     <img 
-                      src={asset.url} 
-                      alt={asset.key}
+                      src={getImageUrl(assetKey)} 
+                      alt={assetKey}
                       className="w-16 h-16 object-cover rounded-lg border border-gray-200 mr-4"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://images.pexels.com/photos/1029599/pexels-photo-1029599.jpeg?auto=compress&cs=tinysrgb&w=400';
+                      }}
                     />
                     <div>
                       <h4 className="font-medium text-gray-900">
-                        {asset.key}
+                        {assetKey}
                       </h4>
-                      <p className="text-sm text-gray-500">Image {assetIndex + 1}</p>
+                      <p className="text-sm text-gray-500">Asset Key {keyIndex + 1}</p>
                     </div>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {ARCHETYPES.map(archetype => {
-                      const weight = getOptionWeight(asset.key, archetype);
+                      const weight = getOptionWeight(assetKey, archetype);
                       
                       return (
                         <div key={archetype} className="space-y-2">
@@ -887,7 +890,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
                               value={weight}
                               onChange={(e) => {
                                 const newWeight = parseInt(e.target.value);
-                                updateOptionMapping(asset.key, archetype, newWeight);
+                                updateOptionMapping(assetKey, archetype, newWeight);
                               }}
                               className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                               style={{
@@ -902,7 +905,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
                               value={weight}
                               onChange={(e) => {
                                 const newWeight = parseInt(e.target.value) || 0;
-                                updateOptionMapping(asset.key, archetype, newWeight);
+                                updateOptionMapping(assetKey, archetype, newWeight);
                               }}
                               className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                             />
