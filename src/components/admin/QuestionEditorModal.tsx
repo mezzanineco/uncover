@@ -107,7 +107,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
       // Parse image assets if present
       if (question.assetKeys && question.format === 'Image Choice') {
         const keys = question.assetKeys.replace('img:', '').split(',');
-        setImageAssets(keys.map(key => ({ key: key.trim(), url: getImageUrl(key.trim()) })));
+        setImageAssetKeys(keys.map(key => key.trim()));
       }
     } else {
       // Reset for new question
@@ -125,7 +125,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
       setOptionMappings([]);
       setSelectedArchetypes([]);
       setSliderArchetypes({left: '', right: ''});
-      setImageAssets([]);
+      setImageAssetKeys([]);
     }
     setErrors({});
     setActiveTab('basic');
