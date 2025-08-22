@@ -645,7 +645,7 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
                       placeholder="e.g., crown, compass, flame"
                       required
                     />
-                    {!asset.key?.trim() && (
+                    {!asset.key?.trim() && Object.keys(errors).length > 0 && (
                       <p className="text-xs text-red-600 mt-1">Asset key is required</p>
                     )}
                   </div>
