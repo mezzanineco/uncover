@@ -1136,8 +1136,6 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
                   </div>
                 ) : (
                   <>
-             id="question-id"
-             name="questionId"
                     <Save className="w-4 h-4 mr-2" />
                     {isEditing ? 'Update Question' : 'Add Question'}
                   </>
@@ -1159,5 +1157,3 @@ export function QuestionEditorModal({ isOpen, question, onSave, onCancel }: Ques
     </div>
   );
 }
-             id="question-category"
-             name="questionCategory"
