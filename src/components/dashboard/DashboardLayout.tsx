@@ -28,6 +28,7 @@ interface DashboardLayoutProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   onLogout: () => void;
+  onStartAssessment: () => void;
   children: React.ReactNode;
 }
 
@@ -39,6 +40,7 @@ export function DashboardLayout({
   activeTab,
   onTabChange,
   onLogout,
+  onStartAssessment,
   children
 }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -249,9 +251,9 @@ export function DashboardLayout({
 
               {/* Quick actions */}
               {hasPermission(member.role, 'CREATE_PROJECT') && (
-                <Button size="sm">
+                <Button size="sm" onClick={onStartAssessment}>
                   <Plus className="w-4 h-4 mr-2" />
-                  New Project
+                  Start Assessment
                 </Button>
               )}
 

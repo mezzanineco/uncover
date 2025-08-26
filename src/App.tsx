@@ -71,6 +71,7 @@ function AppContent() {
         organisation={organisation}
         member={member}
         onLogout={logout}
+        onStartAssessment={handleStartAssessment}
       />
     );
   }
@@ -95,8 +96,7 @@ function AppContent() {
 
   const handleRestart = () => {
     setAssessmentResult(null);
-    // Skip auth for testing - go directly to admin dashboard
-    setCurrentState('admin');
+    setCurrentState('landing');
   };
 
   const handleSignup = async (email: string) => {
