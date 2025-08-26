@@ -389,6 +389,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                           size="sm"
                           onClick={() => {
                             console.log('Continue button clicked for assessment:', assessment.id);
+                            console.log('Dispatching continueAssessment event');
                             window.dispatchEvent(new CustomEvent('continueAssessment', {
                               detail: { assessmentId: assessment.id }
                             }));
