@@ -72,7 +72,7 @@ function AppContent() {
 
   const handleBackToDashboard = () => {
     // Save current progress before returning to dashboard
-    if (currentState === 'assessment' && responses.length > 0) {
+    if (currentState === 'assessment' && responses.length > 0 && isFromDashboard) {
       const newAssessment: Assessment = {
         id: `assess-${Date.now()}`,
         name: 'My Brand Archetype Assessment',
@@ -80,7 +80,7 @@ function AppContent() {
         projectId: 'solo-project',
         organisationId: organisation?.id || 'default-org',
         templateId: 'template-1',
-        status: 'draft',
+        status: 'active',
         createdBy: user?.id || 'current-user',
         createdAt: new Date(),
         updatedAt: new Date(),

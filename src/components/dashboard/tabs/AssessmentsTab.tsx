@@ -100,6 +100,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
   useEffect(() => {
     const handleAssessmentSaved = (event: CustomEvent) => {
       const { assessment } = event.detail;
+      console.log('Assessment saved event received:', assessment);
       setAssessments(prev => {
         // Check if assessment already exists
         const existingIndex = prev.findIndex(a => a.id === assessment.id);
@@ -117,10 +118,11 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
 
     const handleAssessmentCompleted = (event: CustomEvent) => {
       const { assessment } = event.detail;
+      console.log('Assessment completed event received:', assessment);
       setAssessments(prev => {
         // Check if assessment already exists (from draft)
         const existingIndex = prev.findIndex(a => 
-          a.name === assessment.name && a.status === 'draft'
+          a.name === assessment.name && (a.status === 'draft' || a.status === 'active')
         );
         if (existingIndex >= 0) {
           // Update existing draft to completed
@@ -133,6 +135,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
         }
       });
     };
+    
     window.addEventListener('assessmentSaved', handleAssessmentSaved as EventListener);
     window.addEventListener('assessmentCompleted', handleAssessmentCompleted as EventListener);
     
