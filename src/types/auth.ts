@@ -151,6 +151,8 @@ export interface DashboardStats {
   assessmentCount: number;
   totalParticipants: number;
   completedAssessments: number;
+  acceptedMembers: number;
+  invitedMembers: number;
   recentActivity: Array<{
     id: string;
     type: 'assessment_created' | 'participant_completed' | 'invite_sent';

@@ -24,6 +24,8 @@ export function UserDashboard({ user, organisation, member, onLogout, onStartAss
     assessmentCount: 8,
     totalParticipants: 45,
     completedAssessments: 32,
+    acceptedMembers: 3,
+    invitedMembers: 5,
     recentActivity: [
       {
         id: '1',
