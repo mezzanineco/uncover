@@ -3,14 +3,16 @@ import {
   Plus, 
   Users, 
   Mail, 
-  MoreHorizontal,
+  Edit3,
   UserCheck,
   UserX,
   Clock,
   Shield,
   Crown,
   Send,
-  Trash2
+  Trash2,
+  X,
+  CheckCircle
 } from 'lucide-react';
 import { Button } from '../../common/Button';
 import type { Organisation, OrganisationMember, Invite } from '../../../types/auth';
@@ -508,9 +510,37 @@ export function TeamTab({ organisation, member }: TeamTabProps) {
                   </td>
                   {canManageMembers && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button className="text-gray-600 hover:text-gray-900">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handleEditMember(teamMember)}
+                          className="text-blue-600 hover:text-blue-900"
+                          title="Edit Member"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleSuspendMember(teamMember.id)}
+                          className={`${
+                            teamMember.status === 'suspended' 
+                              ? 'text-green-600 hover:text-green-900' 
+                              : 'text-amber-600 hover:text-amber-900'
+                          }`}
+                          title={teamMember.status === 'suspended' ? 'Activate Member' : 'Suspend Member'}
+                        >
+                          {teamMember.status === 'suspended' ? (
+                            <UserCheck className="w-4 h-4" />
+                          ) : (
+                            <UserX className="w-4 h-4" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleRemoveMember(teamMember.id)}
+                          className="text-red-600 hover:text-red-900"
+                          title="Remove Member"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   )}
                 </tr>
