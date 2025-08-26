@@ -463,9 +463,9 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                         </div>
                       )}
                     </div>
-                      {assessment.stats.totalCompleted}/{assessment.stats.totalInvited}
+                    <div className="text-sm text-gray-500">
+                      {assessment.stats.totalCompleted}/{assessment.stats.totalInvited} completed
                     </div>
-                    <div className="text-sm text-gray-500">completed</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {assessment.roomCode ? (
