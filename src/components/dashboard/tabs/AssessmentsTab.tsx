@@ -389,7 +389,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <div className="flex items-center">
                       <Calendar className="w-4 h-4 mr-1" />
-                      {new Date(assessment.updatedAt).toLocaleDateString()}
+                      {new Date(assessment.updatedAt).toLocaleDateString()} {new Date(assessment.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
