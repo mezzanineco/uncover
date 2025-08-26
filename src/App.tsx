@@ -22,6 +22,51 @@ function AppContent() {
   const [verificationToken, setVerificationToken] = useState('');
   const [assessmentResult, setAssessmentResult] = useState<AssessmentResult | null>(null);
 
+  // Handler functions - declared early to avoid hoisting issues
+  const handleStartAssessment = () => {
+    if (!isAuthenticated) {
+      setCurrentState('auth');
+      return;
+    }
+    setCurrentState('assessment');
+  };
+
+  const handleAssessmentComplete = (result: AssessmentResult) => {
+    setAssessmentResult(result);
+    setCurrentState('results');
+  };
+
+  const handleRestart = () => {
+    setAssessmentResult(null);
+    setCurrentState('landing');
+  };
+
+  const handleSignup = async (email: string) => {
+    await signup(email);
+  };
+
+  const handleLogin = async (email: string) => {
+    await login(email);
+  };
+
+  const handleLoginWithPassword = async (username: string, password: string) => {
+    await login(username, password);
+  };
+
+  const handleSignupWithPassword = async (username: string, email: string, password: string) => {
+    await signup(username, email, password);
+  };
+
+  const handleVerificationComplete = (userData: any) => {
+    // The AuthProvider will handle the state update
+    setCurrentState('landing');
+  };
+
+  const handleVerificationFailed = (error: string) => {
+    console.error('Verification failed:', error);
+    setAuthMode('login');
+  };
+
   // Handle URL-based magic link verification
   React.useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -80,50 +125,6 @@ function AppContent() {
   if (currentState === 'admin') {
     return <AdminDashboard />;
   }
-
-  const handleStartAssessment = () => {
-    if (!isAuthenticated) {
-      setCurrentState('auth');
-      return;
-    }
-    setCurrentState('assessment');
-  };
-
-  const handleAssessmentComplete = (result: AssessmentResult) => {
-    setAssessmentResult(result);
-    setCurrentState('results');
-  };
-
-  const handleRestart = () => {
-    setAssessmentResult(null);
-    setCurrentState('landing');
-  };
-
-  const handleSignup = async (email: string) => {
-    await signup(email);
-  };
-
-  const handleLogin = async (email: string) => {
-    await login(email);
-  };
-
-  const handleLoginWithPassword = async (username: string, password: string) => {
-    await login(username, password);
-  };
-
-  const handleSignupWithPassword = async (username: string, email: string, password: string) => {
-    await signup(username, email, password);
-  };
-
-  const handleVerificationComplete = (userData: any) => {
-    // The AuthProvider will handle the state update
-    setCurrentState('landing');
-  };
-
-  const handleVerificationFailed = (error: string) => {
-    console.error('Verification failed:', error);
-    setAuthMode('login');
-  };
 
   if (currentState === 'auth') {
     return (
