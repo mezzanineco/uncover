@@ -76,6 +76,14 @@ function AppContent() {
       setAuthMode('verify');
       setCurrentState('auth');
     }
+
+    // Listen for solo assessment trigger from dashboard
+    const handleSoloAssessment = () => {
+      setCurrentState('assessment');
+    };
+
+    window.addEventListener('startSoloAssessment', handleSoloAssessment);
+    return () => window.removeEventListener('startSoloAssessment', handleSoloAssessment);
   }, []);
 
   if (isLoading) {
