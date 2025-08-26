@@ -73,18 +73,20 @@ export function DashboardLayout({
   // Calculate dynamic member stats
   const calculateMemberStats = () => {
     try {
-      // Count team members (active members)
-      const acceptedMembers = 3; // Default mock members (could be made dynamic later)
+      // Count actual team members from localStorage
+      const storedMembers = localStorage.getItem('teamMembers');
+      const teamMembers = storedMembers ? JSON.parse(storedMembers) : [];
+      const acceptedMembers = teamMembers.filter((member: any) => member.status === 'active').length;
       
       // Count pending invites
       const storedInvites = localStorage.getItem('pendingInvites');
       const pendingInvites = storedInvites ? JSON.parse(storedInvites) : [];
-      const invitedCount = pendingInvites.length + 1; // +1 for default mock invite
+      const invitedCount = pendingInvites.length;
       
       return { accepted: acceptedMembers, invited: invitedCount };
     } catch (error) {
       console.error('Error calculating member stats:', error);
-      return { accepted: 3, invited: 5 }; // Fallback to default
+      return { accepted: 0, invited: 0 }; // Fallback to zero
     }
   };
 

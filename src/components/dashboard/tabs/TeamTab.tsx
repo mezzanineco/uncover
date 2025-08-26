@@ -32,48 +32,16 @@ interface TeamMember {
 }
 
 export function TeamTab({ organisation, member }: TeamTabProps) {
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([
-    {
-      id: 'member-1',
-      name: 'John Doe',
-      email: 'john@example.com',
-      role: 'user_admin',
-      status: 'active',
-      lastActiveAt: new Date('2024-01-22T10:30:00Z'),
-      joinedAt: new Date('2024-01-01T09:00:00Z')
-    },
-    {
-      id: 'member-2',
-      name: 'Sarah Johnson',
-      email: 'sarah@example.com',
-      role: 'participant',
-      status: 'active',
-      lastActiveAt: new Date('2024-01-21T16:45:00Z'),
-      joinedAt: new Date('2024-01-05T14:20:00Z')
-    },
-    {
-      id: 'member-3',
-      name: 'Mike Wilson',
-      email: 'mike@example.com',
-      role: 'participant',
-      status: 'invited',
-      joinedAt: new Date('2024-01-20T11:15:00Z')
-    }
-  ]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
 
-  const [pendingInvites, setPendingInvites] = useState<Invite[]>([
-    {
-      id: 'invite-1',
-      email: 'alex@example.com',
-      organisationId: organisation.id,
-      role: 'participant',
-      status: 'pending',
-      invitedBy: 'user-1',
-      invitedAt: new Date('2024-01-21T14:30:00Z'),
-      expiresAt: new Date('2024-01-28T14:30:00Z'),
-      token: 'invite-token-1'
-    }
-  ]);
+  const [pendingInvites, setPendingInvites] = useState<Invite[]>([]);
+  const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    email: '',
+    role: 'participant' as 'user_admin' | 'participant'
+  });
 
   // Load pending invites from localStorage on component mount
   useEffect(() => {
@@ -83,51 +51,287 @@ export function TeamTab({ organisation, member }: TeamTabProps) {
         if (storedInvites) {
           const parsedInvites = JSON.parse(storedInvites);
           console.log('Loading stored invites:', parsedInvites);
-          setPendingInvites(prev => {
-            // Merge stored invites with default ones, avoiding duplicates
-            const merged = [...prev];
-            parsedInvites.forEach((stored: Invite) => {
-              const existingIndex = merged.findIndex(i => i.id === stored.id);
-              if (existingIndex >= 0) {
-                merged[existingIndex] = {
-                  ...stored,
-                  invitedAt: new Date(stored.invitedAt),
-                  expiresAt: new Date(stored.expiresAt)
-                };
-              } else {
-                merged.push({
-                  ...stored,
-                  invitedAt: new Date(stored.invitedAt),
-                  expiresAt: new Date(stored.expiresAt)
-                });
-              }
-            });
-            return merged;
-          });
+          setPendingInvites(parsedInvites.map((invite: any) => ({
+            ...invite,
+            invitedAt: new Date(invite.invitedAt),
+            expiresAt: new Date(invite.expiresAt)
+          })));
         }
       } catch (error) {
         console.error('Error loading stored invites:', error);
       }
     };
 
+    const loadStoredMembers = () => {
+      try {
+        const storedMembers = localStorage.getItem('teamMembers');
+        if (storedMembers) {
+          const parsedMembers = JSON.parse(storedMembers);
+          console.log('Loading stored team members:', parsedMembers);
+          setTeamMembers(parsedMembers.map((member: any) => ({
+            ...member,
+            joinedAt: new Date(member.joinedAt),
+            lastActiveAt: member.lastActiveAt ? new Date(member.lastActiveAt) : undefined
+          })));
+        }
+      } catch (error) {
+        console.error('Error loading stored team members:', error);
+      }
+    };
+
     loadStoredInvites();
+    loadStoredMembers();
   }, []);
+
+  // Save team members to localStorage whenever they change
+  useEffect(() => {
+    try {
+      if (teamMembers.length > 0) {
+        localStorage.setItem('teamMembers', JSON.stringify(teamMembers));
+        console.log('Saved team members to localStorage:', teamMembers);
+      }
+    } catch (error) {
+      console.error('Error saving team members to localStorage:', error);
+    }
+  }, [teamMembers]);
 
   // Save pending invites to localStorage whenever they change
   useEffect(() => {
     try {
-      // Only save user-created invites (not the default mock ones)
-      const userInvites = pendingInvites.filter(invite => 
-        !['invite-1'].includes(invite.id)
-      );
-      if (userInvites.length > 0) {
-        localStorage.setItem('pendingInvites', JSON.stringify(userInvites));
-        console.log('Saved pending invites to localStorage:', userInvites);
+      if (pendingInvites.length > 0) {
+        localStorage.setItem('pendingInvites', JSON.stringify(pendingInvites));
+        console.log('Saved pending invites to localStorage:', pendingInvites);
+      } else {
+        localStorage.removeItem('pendingInvites');
       }
     } catch (error) {
       console.error('Error saving invites to localStorage:', error);
     }
   }, [pendingInvites]);
+
+  // Listen for invite acceptance (simulated)
+  useEffect(() => {
+    const handleInviteAccepted = (event: CustomEvent) => {
+      const { inviteId, memberData } = event.detail;
+      
+      // Remove from pending invites
+      setPendingInvites(prev => prev.filter(invite => invite.id !== inviteId));
+      
+      // Add to team members
+      const newMember: TeamMember = {
+        id: `member-${Date.now()}`,
+        name: memberData.name || memberData.email.split('@')[0],
+        email: memberData.email,
+        role: memberData.role,
+        status: 'active',
+        joinedAt: new Date(),
+        lastActiveAt: new Date()
+      };
+      
+      setTeamMembers(prev => [...prev, newMember]);
+      
+      // Dispatch event to update header stats
+      window.dispatchEvent(new CustomEvent('inviteChange'));
+    };
+
+    window.addEventListener('inviteAccepted', handleInviteAccepted as EventListener);
+    
+    return () => {
+      window.removeEventListener('inviteAccepted', handleInviteAccepted as EventListener);
+    };
+  }, []);
+
+  const handleEditMember = (teamMember: TeamMember) => {
+    setEditingMember(teamMember);
+    setEditForm({
+      name: teamMember.name,
+      email: teamMember.email,
+      role: teamMember.role
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingMember) return;
+
+    setTeamMembers(prev => prev.map(member => 
+      member.id === editingMember.id 
+        ? { ...member, ...editForm, lastActiveAt: new Date() }
+        : member
+    ));
+
+    setShowEditModal(false);
+    setEditingMember(null);
+    setEditForm({ name: '', email: '', role: 'participant' });
+    
+    // Dispatch event to update header stats
+    window.dispatchEvent(new CustomEvent('inviteChange'));
+  };
+
+  const handleRemoveMember = (memberId: string) => {
+    if (confirm('Are you sure you want to remove this team member?')) {
+      setTeamMembers(prev => prev.filter(member => member.id !== memberId));
+      
+      // Dispatch event to update header stats
+      window.dispatchEvent(new CustomEvent('inviteChange'));
+    }
+  };
+
+  const handleSuspendMember = (memberId: string) => {
+    setTeamMembers(prev => prev.map(member => 
+      member.id === memberId 
+        ? { ...member, status: member.status === 'suspended' ? 'active' : 'suspended' }
+        : member
+    ));
+  };
+
+  const handleSimulateAcceptInvite = (inviteId: string) => {
+    const invite = pendingInvites.find(i => i.id === inviteId);
+    if (invite) {
+      // Simulate invite acceptance
+      window.dispatchEvent(new CustomEvent('inviteAccepted', {
+        detail: {
+          inviteId,
+          memberData: {
+            email: invite.email,
+            role: invite.role
+          }
+        }
+      }));
+    }
+  };
+
+  // Save pending invites to localStorage whenever they change (updated logic)
+  useEffect(() => {
+    try {
+      if (pendingInvites.length > 0) {
+        localStorage.setItem('pendingInvites', JSON.stringify(pendingInvites));
+        console.log('Saved pending invites to localStorage:', pendingInvites);
+      } else {
+        // Only remove if we explicitly have an empty array (not initial state)
+        const stored = localStorage.getItem('pendingInvites');
+        if (stored) {
+          localStorage.removeItem('pendingInvites');
+        }
+      }
+    } catch (error) {
+      console.error('Error saving invites to localStorage:', error);
+    }
+  }, [pendingInvites]);
+
+  // Remove the old save logic that was duplicated
+  useEffect(() => {
+    const loadStoredInvites = () => {
+      try {
+        const storedInvites = localStorage.getItem('pendingInvites');
+        if (storedInvites) {
+          const parsedInvites = JSON.parse(storedInvites);
+          console.log('Loading stored invites:', parsedInvites);
+          setPendingInvites(parsedInvites.map((invite: any) => ({
+            ...invite,
+            invitedAt: new Date(invite.invitedAt),
+            expiresAt: new Date(invite.expiresAt)
+          })));
+        }
+      } catch (error) {
+        console.error('Error loading stored invites:', error);
+      }
+    };
+
+    const loadStoredMembers = () => {
+      try {
+        const storedMembers = localStorage.getItem('teamMembers');
+        if (storedMembers) {
+          const parsedMembers = JSON.parse(storedMembers);
+          console.log('Loading stored team members:', parsedMembers);
+          setTeamMembers(parsedMembers.map((member: any) => ({
+            ...member,
+            joinedAt: new Date(member.joinedAt),
+            lastActiveAt: member.lastActiveAt ? new Date(member.lastActiveAt) : undefined
+          })));
+        }
+      } catch (error) {
+        console.error('Error loading stored team members:', error);
+      }
+    };
+
+    loadStoredInvites();
+    loadStoredMembers();
+  }, []);
+
+  // Save team members to localStorage whenever they change
+  useEffect(() => {
+    try {
+      if (teamMembers.length > 0) {
+        localStorage.setItem('teamMembers', JSON.stringify(teamMembers));
+        console.log('Saved team members to localStorage:', teamMembers);
+      } else {
+        // Only remove if we explicitly have an empty array after having members
+        const stored = localStorage.getItem('teamMembers');
+        if (stored) {
+          const existing = JSON.parse(stored);
+          if (existing.length > 0) {
+            localStorage.removeItem('teamMembers');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error saving team members to localStorage:', error);
+    }
+  }, [teamMembers]);
+
+  // Save pending invites to localStorage whenever they change
+  useEffect(() => {
+    try {
+      if (pendingInvites.length > 0) {
+        localStorage.setItem('pendingInvites', JSON.stringify(pendingInvites));
+        console.log('Saved pending invites to localStorage:', pendingInvites);
+      } else {
+        // Only remove if we explicitly have an empty array after having invites
+        const stored = localStorage.getItem('pendingInvites');
+        if (stored) {
+          const existing = JSON.parse(stored);
+          if (existing.length > 0) {
+            localStorage.removeItem('pendingInvites');
+          });
+        }
+      } catch (error) {
+        console.error('Error saving invites to localStorage:', error);
+      }
+    }
+  }, [pendingInvites]);
+
+  // Listen for invite acceptance (simulated)
+  useEffect(() => {
+    const handleInviteAccepted = (event: CustomEvent) => {
+      const { inviteId, memberData } = event.detail;
+      
+      // Remove from pending invites
+      setPendingInvites(prev => prev.filter(invite => invite.id !== inviteId));
+      
+      // Add to team members
+      const newMember: TeamMember = {
+        id: `member-${Date.now()}`,
+        name: memberData.name || memberData.email.split('@')[0],
+        email: memberData.email,
+        role: memberData.role,
+        status: 'active',
+        joinedAt: new Date(),
+        lastActiveAt: new Date()
+      };
+      
+      setTeamMembers(prev => [...prev, newMember]);
+      
+      // Dispatch event to update header stats
+      window.dispatchEvent(new CustomEvent('inviteChange'));
+    };
+
+    window.addEventListener('inviteAccepted', handleInviteAccepted as EventListener);
+    
+    return () => {
+      window.removeEventListener('inviteAccepted', handleInviteAccepted as EventListener);
+    };
+  }, []);
 
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteForm, setInviteForm] = useState({
@@ -348,6 +552,15 @@ export function TeamTab({ organisation, member }: TeamTabProps) {
                       <Send className="w-4 h-4 mr-1" />
                       Resend
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleSimulateAcceptInvite(invite.id)}
+                      className="bg-green-50 text-green-600 hover:bg-green-100"
+                    >
+                      <UserCheck className="w-4 h-4 mr-1" />
+                      Accept (Demo)
+                    </Button>
                     <button
                       onClick={() => handleRevokeInvite(invite.id)}
                       className="p-2 text-red-600 hover:text-red-800"
@@ -429,6 +642,76 @@ export function TeamTab({ organisation, member }: TeamTabProps) {
               >
                 <Send className="w-4 h-4 mr-2" />
                 Send Invites
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Member Modal */}
+      {showEditModal && editingMember && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Team Member</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter member name"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter email address"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Role
+                </label>
+                <select
+                  value={editForm.role}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, role: e.target.value as any }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="participant">Participant</option>
+                  <option value="user_admin">Admin</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingMember(null);
+                  setEditForm({ name: '', email: '', role: 'participant' });
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSavEdit}
+                disabled={!editForm.name.trim() || !editForm.email.trim()}
+              >
+                Save Changes
               </Button>
             </div>
           </div>
