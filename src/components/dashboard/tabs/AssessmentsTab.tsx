@@ -373,6 +373,84 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     setAssessments(prev => prev.filter(assessment => assessment.id !== assessmentId));
   };
 
+  const handleSaveAssessmentEdit = () => {
+    if (!editingAssessment) return;
+
+    // Process new email invites
+    const newEmails = editNewInviteEmails
+      .split(',')
+      .map(email => email.trim())
+      .filter(email => email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+
+    // Create new invites for email addresses
+    if (newEmails.length > 0) {
+      const newInvites: Invite[] = newEmails.map(email => ({
+        id: `invite-${Date.now()}-${Math.random()}`,
+        email,
+        organisationId: organisation.id,
+        assessmentId: editingAssessment.id,
+        role: 'participant',
+        status: 'pending',
+        invitedBy: 'current-user',
+        invitedAt: new Date(),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        token: `token-${Date.now()}`
+      }));
+
+      // Add to pending invites
+      try {
+        const existingInvites = JSON.parse(localStorage.getItem('pendingInvites') || '[]');
+        const updatedInvites = [...existingInvites, ...newInvites];
+        localStorage.setItem('pendingInvites', JSON.stringify(updatedInvites));
+        
+        // Add pending members to team list
+        const pendingMembers = newEmails.map(email => ({
+          id: `pending-${Date.now()}-${Math.random()}`,
+          name: email.split('@')[0],
+          email,
+          role: 'participant' as const,
+          status: 'invited' as const,
+          joinedAt: new Date(),
+          lastActiveAt: undefined
+        }));
+
+        const existingMembers = JSON.parse(localStorage.getItem('teamMembers') || '[]');
+        const updatedMembers = [...existingMembers, ...pendingMembers];
+        localStorage.setItem('teamMembers', JSON.stringify(updatedMembers));
+        setTeamMembers(updatedMembers);
+        
+        // Dispatch event to update other components
+        window.dispatchEvent(new CustomEvent('inviteChange'));
+      } catch (error) {
+        console.error('Error saving invites:', error);
+      }
+    }
+
+    // Update the assessment with new participant count
+    const totalParticipants = editSelectedMembers.length + newEmails.length;
+    setAssessments(prev => prev.map(assessment => 
+      assessment.id === editingAssessment.id 
+        ? { 
+            ...assessment, 
+            stats: {
+              ...assessment.stats,
+              totalInvited: totalParticipants
+            },
+            updatedAt: new Date()
+          }
+        : assessment
+    ));
+
+    // Close modal and reset form
+    setShowEditAssessmentModal(false);
+    setEditingAssessment(null);
+    setEditSelectedMembers([]);
+    setEditNewInviteEmails('');
+    
+    // Dispatch event to update header stats
+    window.dispatchEvent(new CustomEvent('inviteChange'));
+  };
+
   const handleCreateTeamWorkshop = () => {
     if (selectedMembers.length === 0 && !newInviteEmails.trim()) return;
 
@@ -595,7 +673,12 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                           {assessment.roomCode}
                         </code>
                         <button
-                          onClick={() => handleCopyInviteLink(assessment.inviteLink || '')}
+                          onClick={() => {
+                            setEditingAssessment(assessment);
+                            setEditSelectedMembers([]);
+                            setEditNewInviteEmails('');
+                            setShowEditAssessmentModal(true);
+                          }}
                           className="text-gray-400 hover:text-gray-600"
                         >
                           <Copy className="w-4 h-4" />
