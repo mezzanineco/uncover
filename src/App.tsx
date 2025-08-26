@@ -68,6 +68,11 @@ function AppContent() {
     setAuthMode('login');
   };
 
+  const handleBackToDashboard = () => {
+    setCurrentState('landing');
+    setIsFromDashboard(false);
+  };
+
   // Handle URL-based magic link verification
   React.useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -108,7 +113,6 @@ function AppContent() {
           title={ASSESSMENT_CONFIG.title}
           description={ASSESSMENT_CONFIG.description}
           onComplete={handleAssessmentComplete}
-          onBackToDashboard={isFromDashboard ? handleBackToDashboard : undefined}
           onBackToDashboard={isFromDashboard ? handleBackToDashboard : undefined}
         />
       );
