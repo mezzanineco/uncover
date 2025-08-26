@@ -312,6 +312,11 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                   </div>
                   <div>
                     <h4 className="font-medium text-gray-900">Solo Assessment</h4>
+                    <p className="text-sm text-gray-500">Quick personal assessment to discover your brand archetype</p>
+                  </div>
+                </div>
+              </button>
+              
               <button
                 onClick={() => {
                   setShowAssessmentTypeModal(false);
@@ -330,7 +335,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                 </div>
               </button>
             </div>
-                    <p className="text-sm text-gray-500">Quick personal assessment to discover your brand archetype</p>
+            
             <div className="flex justify-end mt-6">
               <Button
                 variant="outline"
@@ -342,7 +347,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
           </div>
         </div>
       )}
-                  </div>
+
       {/* Team Workshop Creation Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -371,7 +376,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                   placeholder="Describe your team workshop (optional)"
                 />
               </div>
-                </div>
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Team Members
@@ -386,7 +391,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                 </p>
               </div>
             </div>
-              </button>
+            
             <div className="flex justify-end space-x-3 mt-6">
               <Button
                 variant="outline"
