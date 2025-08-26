@@ -438,37 +438,37 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="flex items-center">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(assessment.status)}`}>
-                          {assessment.status === 'in_progress' ? 'In Progress' : 
-                           assessment.status === 'completed' ? 'Completed' :
-                           assessment.status === 'active' ? 'Active' :
-                           assessment.status === 'paused' ? 'Paused' :
-                           assessment.status === 'draft' ? 'Draft' :
-                           assessment.status}
-                        </span>
-                        {assessment.status === 'in_progress' && (
-                          <div className="ml-3 flex items-center">
-                            <div className="w-16 bg-gray-200 rounded-full h-2">
-                              <div 
-                                className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
-                                style={{ 
-                                  width: `${Math.min((getQuestionsAnswered(assessment.id) / 41) * 100, 100)}%` 
-                                }}
-                              />
-                            </div>
-                            <span className="ml-2 text-xs text-gray-500">
-                              {getQuestionsAnswered(assessment.id)}/41
-                            </span>
+                    <div className="flex items-center">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(assessment.status)}`}>
+                        {assessment.status === 'in_progress' ? 'In Progress' : 
+                         assessment.status === 'completed' ? 'Completed' :
+                         assessment.status === 'active' ? 'Active' :
+                         assessment.status === 'paused' ? 'Paused' :
+                         assessment.status === 'draft' ? 'Draft' :
+                         assessment.status}
+                      </span>
+                      {assessment.status === 'in_progress' && (
+                        <div className="ml-3 flex items-center">
+                          <div className="w-16 bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+                              style={{ 
+                                width: `${Math.min((getQuestionsAnswered(assessment.id) / 41) * 100, 100)}%` 
+                              }}
+                            />
                           </div>
-                        )}
-                      </div>
-                      <div className="mt-1">
-                        {assessment.stats.totalCompleted}/{assessment.stats.totalInvited}
-                      </div>
-                      <div className="text-sm text-gray-500">completed</div>
+                          <span className="ml-2 text-xs text-gray-500">
+                            {getQuestionsAnswered(assessment.id)}/41
+                          </span>
+                        </div>
+                      )}
                     </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {assessment.stats.totalCompleted}/{assessment.stats.totalInvited}
+                    </div>
+                    <div className="text-sm text-gray-500">completed</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {assessment.roomCode ? (
