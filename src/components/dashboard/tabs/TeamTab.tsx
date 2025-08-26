@@ -295,6 +295,7 @@ export function TeamTab({ organisation, member }: TeamTabProps) {
             localStorage.removeItem('pendingInvites');
           }
         }
+      }
       } catch (error) {
         console.error('Error saving invites to localStorage:', error);
       }
