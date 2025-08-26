@@ -293,7 +293,7 @@ export function TeamTab({ organisation, member }: TeamTabProps) {
           const existing = JSON.parse(stored);
           if (existing.length > 0) {
             localStorage.removeItem('pendingInvites');
-          });
+          }
         }
       } catch (error) {
         console.error('Error saving invites to localStorage:', error);
