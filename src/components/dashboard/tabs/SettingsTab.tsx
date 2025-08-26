@@ -8,7 +8,8 @@ import {
   ExternalLink,
   Shield,
   Bell,
-  Globe
+  Globe,
+  Download
 } from 'lucide-react';
 import { Button } from '../../common/Button';
 import type { User as UserType, Organisation, OrganisationMember } from '../../../types/auth';
