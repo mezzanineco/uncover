@@ -115,8 +115,31 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
       });
     };
 
+    const handleAssessmentCompleted = (event: CustomEvent) => {
+      const { assessment } = event.detail;
+      setAssessments(prev => {
+        // Check if assessment already exists (from draft)
+        const existingIndex = prev.findIndex(a => 
+          a.name === assessment.name && a.status === 'draft'
+        );
+        if (existingIndex >= 0) {
+          // Update existing draft to completed
+          const updated = [...prev];
+          updated[existingIndex] = assessment;
+          return updated;
+        } else {
+          // Add new completed assessment
+          return [assessment, ...prev];
+        }
+      });
+    };
     window.addEventListener('assessmentSaved', handleAssessmentSaved as EventListener);
-    return () => window.removeEventListener('assessmentSaved', handleAssessmentSaved as EventListener);
+    window.addEventListener('assessmentCompleted', handleAssessmentCompleted as EventListener);
+    
+    return () => {
+      window.removeEventListener('assessmentSaved', handleAssessmentSaved as EventListener);
+      window.removeEventListener('assessmentCompleted', handleAssessmentCompleted as EventListener);
+    };
   }, []);
 
   const getStatusColor = (status: Assessment['status']) => {
