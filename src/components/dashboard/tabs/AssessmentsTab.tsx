@@ -840,6 +840,103 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
           </div>
         </div>
       )}
+
+      {/* Edit Assessment Modal */}
+      {showEditAssessmentModal && editingAssessment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Edit Assessment: {editingAssessment.name}
+            </h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Current Participants
+                </label>
+                
+                {/* Existing Team Members */}
+                {teamMembers.length > 0 && (
+                  <div className="mb-4">
+                    <h4 className="text-sm font-medium text-gray-600 mb-2">Team Members</h4>
+                    <div className="space-y-2 max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                      {teamMembers.map((member) => (
+                        <label key={member.id} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={editSelectedMembers.includes(member.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setEditSelectedMembers(prev => [...prev, member.id]);
+                              } else {
+                                setEditSelectedMembers(prev => prev.filter(id => id !== member.id));
+                              }
+                            }}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <div className="ml-3">
+                            <span className="text-sm font-medium text-gray-900">{member.name}</span>
+                            <span className="text-xs text-gray-500 ml-2">({member.email})</span>
+                            {member.status === 'suspended' && (
+                              <span className="text-xs text-red-500 ml-2">(Suspended)</span>
+                            )}
+                            {member.status === 'invited' && (
+                              <span className="text-xs text-amber-500 ml-2">(Pending)</span>
+                            )}
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Add New Invites */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-600 mb-2">Add New Participants</h4>
+                  <textarea
+                    value={editNewInviteEmails}
+                    onChange={(e) => setEditNewInviteEmails(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    rows={3}
+                    placeholder="Enter email addresses separated by commas"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    New participants will be added to your team as 'pending' until they accept
+                  </p>
+                </div>
+              </div>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-800">
+                  <strong>Current:</strong> {editingAssessment.stats.totalInvited} participants
+                  <br />
+                  <strong>New Total:</strong> {editSelectedMembers.length + (editNewInviteEmails.split(',').filter(email => email.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())).length)} participants
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowEditAssessmentModal(false);
+                  setEditingAssessment(null);
+                  setEditSelectedMembers([]);
+                  setEditNewInviteEmails('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveAssessmentEdit}
+                disabled={editSelectedMembers.length === 0 && !editNewInviteEmails.trim()}
+              >
+                Update Assessment
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
