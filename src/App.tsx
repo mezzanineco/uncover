@@ -72,7 +72,15 @@ function AppContent() {
 
   const handleBackToDashboard = () => {
     // Save current progress before returning to dashboard
+    console.log('handleBackToDashboard called', { 
+      currentState, 
+      responsesLength: responses.length, 
+      isFromDashboard,
+      currentQuestionIndex 
+    });
+    
     if (currentState === 'assessment' && responses.length > 0 && isFromDashboard) {
+      console.log('Saving assessment progress...');
       const newAssessment: Assessment = {
         id: `assess-${Date.now()}`,
         name: 'My Brand Archetype Assessment',
@@ -102,12 +110,20 @@ function AppContent() {
       };
       
       // Save to localStorage for persistence
+      console.log('Saving to localStorage:', assessmentProgress);
       localStorage.setItem('assessmentProgress', JSON.stringify(assessmentProgress));
       
       // Trigger event to update dashboard
+      console.log('Dispatching assessmentSaved event');
       window.dispatchEvent(new CustomEvent('assessmentSaved', {
         detail: { assessment: newAssessment }
       }));
+    } else {
+      console.log('Not saving assessment - conditions not met:', {
+        currentState,
+        responsesLength: responses.length,
+        isFromDashboard
+      });
     }
     
     setCurrentState('landing');
