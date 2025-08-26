@@ -15,10 +15,11 @@ import {
   CheckCircle,
   X,
   Edit3,
-  Trash2
+  Trash2,
+  Mail
 } from 'lucide-react';
 import { Button } from '../../common/Button';
-import type { Organisation, OrganisationMember, Assessment } from '../../../types/auth';
+import type { Organisation, OrganisationMember, Assessment, Invite } from '../../../types/auth';
 import { hasPermission } from '../../../types/auth';
 
 interface AssessmentsTabProps {
@@ -97,6 +98,9 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
 
   const [editingAssessmentId, setEditingAssessmentId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [newInviteEmails, setNewInviteEmails] = useState('');
 
   // Load assessments from localStorage on component mount
   useEffect(() => {
@@ -125,7 +129,24 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
       }
     };
 
+    const loadTeamMembers = () => {
+      try {
+        const storedMembers = localStorage.getItem('teamMembers');
+        if (storedMembers) {
+          const parsedMembers = JSON.parse(storedMembers);
+          setTeamMembers(parsedMembers.map((member: any) => ({
+            ...member,
+            joinedAt: new Date(member.joinedAt),
+            lastActiveAt: member.lastActiveAt ? new Date(member.lastActiveAt) : undefined
+          })));
+        }
+      } catch (error) {
+        console.error('Error loading team members:', error);
+      }
+    };
+
     loadStoredAssessments();
+    loadTeamMembers();
   }, []);
 
   // Save assessments to localStorage whenever assessments change
@@ -345,6 +366,91 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
 
   const handleDeleteAssessment = (assessmentId: string) => {
     setAssessments(prev => prev.filter(assessment => assessment.id !== assessmentId));
+  };
+
+  const handleCreateTeamWorkshop = () => {
+    if (selectedMembers.length === 0 && !newInviteEmails.trim()) return;
+
+    // Process new email invites
+    const newEmails = newInviteEmails
+      .split(',')
+      .map(email => email.trim())
+      .filter(email => email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+
+    // Create new invites for email addresses
+    if (newEmails.length > 0) {
+      const newInvites: Invite[] = newEmails.map(email => ({
+        id: `invite-${Date.now()}-${Math.random()}`,
+        email,
+        organisationId: organisation.id,
+        role: 'participant',
+        status: 'pending',
+        invitedBy: 'current-user',
+        invitedAt: new Date(),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        token: `token-${Date.now()}`
+      }));
+
+      // Add to pending invites
+      try {
+        const existingInvites = JSON.parse(localStorage.getItem('pendingInvites') || '[]');
+        const updatedInvites = [...existingInvites, ...newInvites];
+        localStorage.setItem('pendingInvites', JSON.stringify(updatedInvites));
+        
+        // Add pending members to team list
+        const pendingMembers = newEmails.map(email => ({
+          id: `pending-${Date.now()}-${Math.random()}`,
+          name: email.split('@')[0],
+          email,
+          role: 'participant' as const,
+          status: 'invited' as const,
+          joinedAt: new Date(),
+          lastActiveAt: undefined
+        }));
+
+        const existingMembers = JSON.parse(localStorage.getItem('teamMembers') || '[]');
+        const updatedMembers = [...existingMembers, ...pendingMembers];
+        localStorage.setItem('teamMembers', JSON.stringify(updatedMembers));
+        setTeamMembers(updatedMembers);
+        
+        // Dispatch event to update other components
+        window.dispatchEvent(new CustomEvent('inviteChange'));
+      } catch (error) {
+        console.error('Error saving invites:', error);
+      }
+    }
+
+    // Create the assessment
+    const totalParticipants = selectedMembers.length + newEmails.length;
+    const newAssessment: Assessment = {
+      id: `assess-${Date.now()}`,
+      name: 'Team Workshop Assessment',
+      description: `Team workshop with ${totalParticipants} participants`,
+      projectId: 'team-project',
+      organisationId: organisation.id,
+      templateId: 'template-1',
+      status: 'active',
+      createdBy: 'current-user',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      inviteLink: `https://app.example.com/join/TEAM${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+      roomCode: `TEAM${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+      roomCodeExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+      requireConsent: true,
+      allowAnonymous: false,
+      stats: {
+        totalInvited: totalParticipants,
+        totalStarted: 0,
+        totalCompleted: 0
+      }
+    };
+
+    setAssessments(prev => [newAssessment, ...prev]);
+    
+    // Reset form
+    setSelectedMembers([]);
+    setNewInviteEmails('');
+    setShowCreateModal(false);
   };
 
   const isSoloAssessment = (assessment: Assessment) => {
@@ -630,7 +736,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
       {/* Team Workshop Creation Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Create Team Workshop</h3>
             
             <div className="space-y-4">
@@ -657,17 +763,56 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Team Members
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Select Team Members
                 </label>
-                <textarea
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  rows={3}
-                  placeholder="Enter email addresses separated by commas"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Invitations will be sent to these email addresses
-                </p>
+                
+                {/* Existing Team Members */}
+                {teamMembers.length > 0 && (
+                  <div className="mb-4">
+                    <h4 className="text-sm font-medium text-gray-600 mb-2">Existing Team Members</h4>
+                    <div className="space-y-2 max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                      {teamMembers.map((member) => (
+                        <label key={member.id} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedMembers.includes(member.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedMembers(prev => [...prev, member.id]);
+                              } else {
+                                setSelectedMembers(prev => prev.filter(id => id !== member.id));
+                              }
+                            }}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <div className="ml-3">
+                            <span className="text-sm font-medium text-gray-900">{member.name}</span>
+                            <span className="text-xs text-gray-500 ml-2">({member.email})</span>
+                            {member.status === 'suspended' && (
+                              <span className="text-xs text-red-500 ml-2">(Suspended)</span>
+                            )}
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* New Invites */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-600 mb-2">Invite New Members</h4>
+                  <textarea
+                    value={newInviteEmails}
+                    onChange={(e) => setNewInviteEmails(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    rows={3}
+                    placeholder="Enter email addresses separated by commas"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    New members will be added to your team as 'pending' until they accept
+                  </p>
+                </div>
               </div>
             </div>
             
@@ -680,9 +825,9 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
               </Button>
               <Button
                 onClick={() => {
-                  setShowCreateModal(false);
-                  // Handle team workshop creation
+                  handleCreateTeamWorkshop();
                 }}
+                disabled={selectedMembers.length === 0 && !newInviteEmails.trim()}
               >
                 Create Workshop
               </Button>
