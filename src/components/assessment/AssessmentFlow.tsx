@@ -17,7 +17,19 @@ interface AssessmentFlowProps {
   onProgressUpdate?: (responses: Response[], questionIndex: number) => void;
 }
 
-export function AssessmentFlow({ 
+interface AssessmentFlowProps {
+  questions: ParsedQuestion[];
+  onComplete: (result: AssessmentResult) => void;
+  onBackToDashboard?: () => void;
+  title: string;
+  description: string;
+  initialResponses?: Response[];
+  initialQuestionIndex?: number;
+  onProgressUpdate?: (responses: Response[], questionIndex: number) => void;
+  currentAssessmentId?: string;
+}
+
+export function AssessmentFlow({
   questions, 
   onComplete, 
   onBackToDashboard, 
@@ -25,7 +37,8 @@ export function AssessmentFlow({
   description,
   initialResponses = [],
   initialQuestionIndex = 0,
-  onProgressUpdate
+  onProgressUpdate,
+  currentAssessmentId
 }: AssessmentFlowProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(initialQuestionIndex);
   const [responses, setResponses] = useState<Response[]>(initialResponses);
@@ -75,7 +88,8 @@ export function AssessmentFlow({
       // Auto-save progress to localStorage after each response
       if (onBackToDashboard) {
         try {
-          const assessmentId = `assess-${Date.now()}`;
+          // Use the current assessment ID or generate one if not set
+          const assessmentId = currentAssessmentId || `assess-${Date.now()}`;
           const progressData = {
             assessment: {
               id: assessmentId,
@@ -99,8 +113,10 @@ export function AssessmentFlow({
             responses: updatedResponses,
             currentQuestionIndex: currentQuestionIndex
           };
-          localStorage.setItem('assessmentProgress', JSON.stringify(progressData));
+          // Save progress with assessment-specific key
+          localStorage.setItem(`assessmentProgress_${assessmentId}`, JSON.stringify(progressData));
           console.log('Auto-saved progress after response:', {
+            assessmentId,
             responsesCount: updatedResponses.length,
             questionIndex: currentQuestionIndex
           });

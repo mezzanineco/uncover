@@ -61,7 +61,9 @@ function AppContent() {
     };
 
     // Clear the saved progress since assessment is complete
-    localStorage.removeItem('assessmentProgress');
+    if (currentAssessmentId) {
+      localStorage.removeItem(`assessmentProgress_${currentAssessmentId}`);
+    }
     
     // Save completed assessment
     try {
@@ -179,7 +181,8 @@ function AppContent() {
       console.log('Continuing assessment:', assessmentId);
       
       try {
-        const savedProgress = localStorage.getItem('assessmentProgress');
+        // Try to load progress for this specific assessment
+        const savedProgress = localStorage.getItem(`assessmentProgress_${assessmentId}`);
         if (savedProgress) {
           const { responses: savedResponses, currentQuestionIndex: savedIndex } = JSON.parse(savedProgress);
           console.log('Loaded saved progress:', { 
@@ -247,6 +250,7 @@ function AppContent() {
             setResponses(newResponses);
             setCurrentQuestionIndex(newIndex);
           }}
+          currentAssessmentId={currentAssessmentId}
         />
       );
     }
@@ -314,6 +318,7 @@ function AppContent() {
         title={ASSESSMENT_CONFIG.title}
         description={ASSESSMENT_CONFIG.description}
         onComplete={handleAssessmentComplete}
+        currentAssessmentId={currentAssessmentId}
       />
     );
   }

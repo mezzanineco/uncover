@@ -280,6 +280,14 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
   const canViewResults = hasPermission(member.role, 'VIEW_RESULTS');
   const canExportResults = hasPermission(member.role, 'EXPORT_RESULTS');
 
+  const handleContinueAssessment = (assessmentId: string) => {
+    console.log('Continue button clicked for assessment:', assessmentId);
+    console.log('Dispatching continueAssessment event with ID:', assessmentId);
+    window.dispatchEvent(new CustomEvent('continueAssessment', {
+      detail: { assessmentId }
+    }));
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -390,11 +398,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                         <Button
                           size="sm"
                           onClick={() => {
-                            console.log('Continue button clicked for assessment:', assessment.id);
-                            console.log('Dispatching continueAssessment event');
-                            window.dispatchEvent(new CustomEvent('continueAssessment', {
-                              detail: { assessmentId: assessment.id }
-                            }));
+                            handleContinueAssessment(assessment.id);
                           }}
                         >
                           <Play className="w-4 h-4 mr-1" />
