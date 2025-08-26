@@ -16,7 +16,7 @@ interface UserDashboardProps {
 }
 
 export function UserDashboard({ user, organisation, member, onLogout, onStartAssessment }: UserDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'projects' | 'assessments' | 'team' | 'pdfs' | 'settings'>('projects');
+  const [activeTab, setActiveTab] = useState<'assessments' | 'team' | 'pdfs' | 'settings'>('assessments');
 
   // Mock dashboard stats
   const stats: DashboardStats = {
@@ -48,8 +48,6 @@ export function UserDashboard({ user, organisation, member, onLogout, onStartAss
 
   const renderActiveTab = () => {
     switch (activeTab) {
-      case 'projects':
-        return <ProjectsTab organisation={organisation} member={member} />;
       case 'assessments':
         return <AssessmentsTab organisation={organisation} member={member} />;
       case 'team':
@@ -59,7 +57,7 @@ export function UserDashboard({ user, organisation, member, onLogout, onStartAss
       case 'settings':
         return <SettingsTab user={user} organisation={organisation} member={member} />;
       default:
-        return <ProjectsTab organisation={organisation} member={member} />;
+        return <AssessmentsTab organisation={organisation} member={member} />;
     }
   };
 

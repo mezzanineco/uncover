@@ -47,13 +47,6 @@ export function DashboardLayout({
 
   const navigationItems = [
     { 
-      id: 'projects', 
-      label: 'Projects', 
-      icon: FolderOpen, 
-      permission: 'VIEW_ORGANISATION' as const,
-      count: stats.projectCount
-    },
-    { 
       id: 'assessments', 
       label: 'Assessments', 
       icon: FileText, 
