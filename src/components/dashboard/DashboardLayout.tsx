@@ -43,6 +43,51 @@ export function DashboardLayout({
   children
 }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [dynamicAssessmentCount, setDynamicAssessmentCount] = useState(0);
+
+  // Calculate dynamic assessment count
+  const calculateAssessmentCount = () => {
+    try {
+      const storedAssessments = localStorage.getItem('userAssessments');
+      const assessments = storedAssessments ? JSON.parse(storedAssessments) : [];
+      
+      // Also check for saved progress
+      const savedProgress = localStorage.getItem('assessmentProgress');
+      let progressCount = 0;
+      if (savedProgress) {
+        progressCount = 1;
+      }
+      
+      return assessments.length + progressCount;
+    } catch (error) {
+      console.error('Error calculating assessment count:', error);
+      return 0;
+    }
+  };
+
+  // Update count on mount and when assessments change
+  useEffect(() => {
+    const updateCount = () => {
+      setDynamicAssessmentCount(calculateAssessmentCount());
+    };
+
+    updateCount();
+
+    // Listen for assessment changes
+    const handleAssessmentChange = () => {
+      updateCount();
+    };
+
+    window.addEventListener('assessmentSaved', handleAssessmentChange);
+    window.addEventListener('assessmentCompleted', handleAssessmentChange);
+    window.addEventListener('storage', handleAssessmentChange);
+
+    return () => {
+      window.removeEventListener('assessmentSaved', handleAssessmentChange);
+      window.removeEventListener('assessmentCompleted', handleAssessmentChange);
+      window.removeEventListener('storage', handleAssessmentChange);
+    };
+  }, []);
 
   const navigationItems = [
     { 
@@ -50,7 +95,7 @@ export function DashboardLayout({
       label: 'Assessments', 
       icon: FileText, 
       permission: 'VIEW_ORGANISATION' as const,
-      count: stats.assessmentCount
+      count: dynamicAssessmentCount
     },
     { 
       id: 'team', 
