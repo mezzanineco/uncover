@@ -433,10 +433,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                         </div>
                       )}
                       <div className="text-sm text-gray-500 max-w-xs truncate">
-                        {assessment.status === 'in_progress' 
-                          ? `Assessment in progress - ${getQuestionsAnswered(assessment.id)} questions answered`
-                          : assessment.description
-                        }
+                        {assessment.description}
                       </div>
                     </div>
                   </td>
@@ -450,6 +447,21 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                          assessment.status === 'draft' ? 'Draft' :
                          assessment.status}
                       </span>
+                      {assessment.status === 'in_progress' && (
+                        <div className="ml-3 flex items-center">
+                          <div className="w-16 bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+                              style={{ 
+                                width: `${Math.min((getQuestionsAnswered(assessment.id) / 41) * 100, 100)}%` 
+                              }}
+                            />
+                          </div>
+                          <span className="ml-2 text-xs text-gray-500">
+                            {getQuestionsAnswered(assessment.id)}/41
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
