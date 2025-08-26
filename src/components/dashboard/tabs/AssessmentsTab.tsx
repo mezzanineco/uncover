@@ -280,6 +280,19 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
   const canViewResults = hasPermission(member.role, 'VIEW_RESULTS');
   const canExportResults = hasPermission(member.role, 'EXPORT_RESULTS');
 
+  const getQuestionsAnswered = (assessmentId: string) => {
+    try {
+      const savedProgress = localStorage.getItem(`assessmentProgress_${assessmentId}`);
+      if (savedProgress) {
+        const { responses } = JSON.parse(savedProgress);
+        return responses?.length || 0;
+      }
+    } catch (error) {
+      console.error('Error getting questions answered count:', error);
+    }
+    return 0;
+  };
+
   const handleContinueAssessment = (assessmentId: string) => {
     console.log('Continue button clicked for assessment:', assessmentId);
     console.log('Dispatching continueAssessment event with ID:', assessmentId);
@@ -340,7 +353,10 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                     <div>
                       <div className="text-sm font-medium text-gray-900">{assessment.name}</div>
                       <div className="text-sm text-gray-500 max-w-xs truncate">
-                        {assessment.description}
+                        {assessment.status === 'in_progress' 
+                          ? `Assessment in progress - ${getQuestionsAnswered(assessment.id)} questions answered`
+                          : assessment.description
+                        }
                       </div>
                     </div>
                   </td>
