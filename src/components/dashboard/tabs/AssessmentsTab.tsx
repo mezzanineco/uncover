@@ -294,8 +294,12 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(assessment.status)}`}>
-                          {assessment.status === 'in_progress' ? 'In Progress' : assessment.status}
-                        <span className="ml-1 capitalize">{assessment.status}</span>
+                        {assessment.status === 'in_progress' ? 'In Progress' : 
+                         assessment.status === 'completed' ? 'Completed' :
+                         assessment.status === 'active' ? 'Active' :
+                         assessment.status === 'paused' ? 'Paused' :
+                         assessment.status === 'draft' ? 'Draft' :
+                         assessment.status}
                       </span>
                     </div>
                   </td>
