@@ -8,7 +8,7 @@ import type { User, QuestionBank, Session } from '../../types/admin';
 import type { ParsedQuestion } from '../../types';
 
 export function AdminDashboard() {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'questions' | 'sessions'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'question-banks' | 'sessions'>('dashboard');
   
   // Mock current user - in production this would come from auth context
   const currentUser: User = {

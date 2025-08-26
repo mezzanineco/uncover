@@ -41,7 +41,6 @@ export function AdminLayout({
     { id: 'archetypes', label: 'Archetypes', icon: Palette, roles: ['super_admin'] },
     { id: 'templates', label: 'Templates', icon: FileText, roles: ['super_admin', 'facilitator'] },
     { id: 'sessions', label: 'Sessions', icon: Play, roles: ['super_admin', 'facilitator'] },
-    { id: 'clients', label: 'Clients', icon: Users, roles: ['super_admin', 'facilitator'] },
     { id: 'reports', label: 'Reports', icon: BarChart3, roles: ['super_admin', 'facilitator', 'client_admin'] },
     { id: 'settings', label: 'Settings', icon: Settings, roles: ['super_admin', 'facilitator'] },
   ];
