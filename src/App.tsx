@@ -42,7 +42,7 @@ function AppContent() {
     const completedAssessment: Assessment = {
       id: currentAssessmentId || `assess-completed-${Date.now()}`,
       name: 'My Brand Archetype Assessment',
-      description: 'Personal brand archetype assessment',
+      description: `Assessment completed on ${new Date().toLocaleDateString()}`,
       projectId: 'solo-project',
       organisationId: organisation?.id || 'default-org',
       templateId: 'template-1',
@@ -124,7 +124,7 @@ function AppContent() {
       const progressAssessment: Assessment = {
         id: assessmentId,
         name: 'My Brand Archetype Assessment',
-        description: 'Personal brand archetype assessment',
+        description: `Assessment in progress - ${responses.length} questions answered`,
         projectId: 'solo-project',
         organisationId: organisation?.id || 'default-org',
         templateId: 'template-1',

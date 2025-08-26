@@ -72,7 +72,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     {
       id: 'assess-3',
       name: 'Marketing Team Workshop',
-      description: 'Team workshop for marketing department',
+      description: 'Team workshop for marketing department - in progress',
       projectId: 'team-1',
       organisationId: organisation.id,
       templateId: 'template-1',
@@ -463,9 +463,9 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                         </div>
                       )}
                     </div>
-                    <div className="text-sm text-gray-500">
-                      {assessment.stats.totalCompleted}/{assessment.stats.totalInvited} completed
+                      {assessment.stats.totalCompleted}/{assessment.stats.totalInvited}
                     </div>
+                    <div className="text-sm text-gray-500">completed</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {assessment.roomCode ? (
