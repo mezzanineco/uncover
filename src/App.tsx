@@ -21,6 +21,7 @@ function AppContent() {
   const [authMode, setAuthMode] = useState<AuthMode>('signup');
   const [verificationToken, setVerificationToken] = useState('');
   const [assessmentResult, setAssessmentResult] = useState<AssessmentResult | null>(null);
+  const [isFromDashboard, setIsFromDashboard] = useState(false);
 
   // Handler functions - declared early to avoid hoisting issues
   const handleStartAssessment = () => {
@@ -78,12 +79,14 @@ function AppContent() {
     }
 
     // Listen for solo assessment trigger from dashboard
-    const handleSoloAssessment = () => {
+    const handleSoloAssessment = (event: CustomEvent) => {
+      const fromDashboard = event.detail?.fromDashboard || false;
+      setIsFromDashboard(fromDashboard);
       setCurrentState('assessment');
     };
 
-    window.addEventListener('startSoloAssessment', handleSoloAssessment);
-    return () => window.removeEventListener('startSoloAssessment', handleSoloAssessment);
+    window.addEventListener('startSoloAssessment', handleSoloAssessment as EventListener);
+    return () => window.removeEventListener('startSoloAssessment', handleSoloAssessment as EventListener);
   }, []);
 
   if (isLoading) {
@@ -105,6 +108,8 @@ function AppContent() {
           title={ASSESSMENT_CONFIG.title}
           description={ASSESSMENT_CONFIG.description}
           onComplete={handleAssessmentComplete}
+          onBackToDashboard={isFromDashboard ? handleBackToDashboard : undefined}
+          onBackToDashboard={isFromDashboard ? handleBackToDashboard : undefined}
         />
       );
     }

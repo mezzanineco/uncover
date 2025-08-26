@@ -302,7 +302,9 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                 onClick={() => {
                   setShowAssessmentTypeModal(false);
                   // Trigger solo assessment - this would call the existing assessment flow
-                  window.dispatchEvent(new CustomEvent('startSoloAssessment'));
+                  window.dispatchEvent(new CustomEvent('startSoloAssessment', {
+                    detail: { fromDashboard: true }
+                  }));
                 }}
                 className="w-full p-4 text-left border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors"
               >
