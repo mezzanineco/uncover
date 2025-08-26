@@ -194,10 +194,16 @@ export function TeamTab({ organisation, member }: TeamTabProps) {
     setPendingInvites(prev => [...prev, ...newInvites]);
     setInviteForm({ emails: '', role: 'participant', message: '' });
     setShowInviteModal(false);
+    
+    // Dispatch event to update header stats
+    window.dispatchEvent(new CustomEvent('inviteChange'));
   };
 
   const handleRevokeInvite = (inviteId: string) => {
     setPendingInvites(prev => prev.filter(invite => invite.id !== inviteId));
+    
+    // Dispatch event to update header stats
+    window.dispatchEvent(new CustomEvent('inviteChange'));
   };
 
   const handleResendInvite = (inviteId: string) => {

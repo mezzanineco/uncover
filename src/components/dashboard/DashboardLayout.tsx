@@ -44,6 +44,7 @@ export function DashboardLayout({
 }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dynamicAssessmentCount, setDynamicAssessmentCount] = useState(0);
+  const [dynamicMemberStats, setDynamicMemberStats] = useState({ accepted: 0, invited: 0 });
 
   // Calculate dynamic assessment count
   const calculateAssessmentCount = () => {
@@ -69,10 +70,29 @@ export function DashboardLayout({
     }
   };
 
+  // Calculate dynamic member stats
+  const calculateMemberStats = () => {
+    try {
+      // Count team members (active members)
+      const acceptedMembers = 3; // Default mock members (could be made dynamic later)
+      
+      // Count pending invites
+      const storedInvites = localStorage.getItem('pendingInvites');
+      const pendingInvites = storedInvites ? JSON.parse(storedInvites) : [];
+      const invitedCount = pendingInvites.length + 1; // +1 for default mock invite
+      
+      return { accepted: acceptedMembers, invited: invitedCount };
+    } catch (error) {
+      console.error('Error calculating member stats:', error);
+      return { accepted: 3, invited: 5 }; // Fallback to default
+    }
+  };
+
   // Update count on mount and when assessments change
   useEffect(() => {
     const updateCount = () => {
       setDynamicAssessmentCount(calculateAssessmentCount());
+      setDynamicMemberStats(calculateMemberStats());
     };
 
     updateCount();
@@ -82,14 +102,21 @@ export function DashboardLayout({
       updateCount();
     };
 
+    // Listen for invite changes
+    const handleInviteChange = () => {
+      setDynamicMemberStats(calculateMemberStats());
+    };
+
     window.addEventListener('assessmentSaved', handleAssessmentChange);
     window.addEventListener('assessmentCompleted', handleAssessmentChange);
     window.addEventListener('storage', handleAssessmentChange);
+    window.addEventListener('inviteChange', handleInviteChange);
 
     return () => {
       window.removeEventListener('assessmentSaved', handleAssessmentChange);
       window.removeEventListener('assessmentCompleted', handleAssessmentChange);
       window.removeEventListener('storage', handleAssessmentChange);
+      window.removeEventListener('inviteChange', handleInviteChange);
     };
   }, []);
 
@@ -268,12 +295,12 @@ export function DashboardLayout({
               <div className="hidden md:flex items-center space-x-6 ml-4">
                 <div className="flex items-center text-sm text-gray-600">
                   <TrendingUp className="w-4 h-4 mr-1 text-green-500" />
-                  <span className="font-medium">{stats.completedAssessments}/{stats.assessmentCount}</span>
+                  <span className="font-medium">{dynamicAssessmentCount}/{dynamicAssessmentCount}</span>
                   <span className="ml-1">assessments</span>
                 </div>
                 <div className="flex items-center text-sm text-gray-600">
                   <Activity className="w-4 h-4 mr-1 text-blue-500" />
-                  <span className="font-medium">{stats.acceptedMembers}/{stats.invitedMembers}</span>
+                  <span className="font-medium">{dynamicMemberStats.accepted}/{dynamicMemberStats.invited}</span>
                   <span className="ml-1">members</span>
                 </div>
               </div>
