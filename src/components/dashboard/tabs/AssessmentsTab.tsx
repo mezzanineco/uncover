@@ -227,8 +227,9 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
   const getStatusColor = (status: Assessment['status']) => {
     switch (status) {
       case 'active':
-      case 'in_progress':
         return 'bg-green-100 text-green-800';
+      case 'in_progress':
+        return 'bg-amber-100 text-amber-800';
       case 'completed':
         return 'bg-blue-100 text-blue-800';
       case 'paused':
@@ -243,8 +244,9 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
   const getStatusIcon = (status: Assessment['status']) => {
     switch (status) {
       case 'active':
-      case 'in_progress':
         return <Play className="w-4 h-4" />;
+      case 'in_progress':
+        return <Clock className="w-4 h-4" />;
       case 'completed':
         return <CheckCircle className="w-4 h-4" />;
       case 'paused':

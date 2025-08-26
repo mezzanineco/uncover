@@ -72,16 +72,38 @@ export function AssessmentFlow({
         onProgressUpdate(updatedResponses, currentQuestionIndex);
       }
       
-      // Auto-save progress to localStorage when from dashboard
+      // Auto-save progress to localStorage after each response
       if (onBackToDashboard) {
         try {
+          const assessmentId = `assess-${Date.now()}`;
           const progressData = {
+            assessment: {
+              id: assessmentId,
+              name: 'My Brand Archetype Assessment',
+              description: `Assessment in progress - ${updatedResponses.length} questions answered`,
+              projectId: 'solo-project',
+              organisationId: 'default-org',
+              templateId: 'template-1',
+              status: 'in_progress' as const,
+              createdBy: 'current-user',
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              requireConsent: true,
+              allowAnonymous: false,
+              stats: {
+                totalInvited: 1,
+                totalStarted: 1,
+                totalCompleted: 0
+              }
+            },
             responses: updatedResponses,
-            currentQuestionIndex: currentQuestionIndex,
-            timestamp: new Date().toISOString()
+            currentQuestionIndex: currentQuestionIndex
           };
           localStorage.setItem('assessmentProgress', JSON.stringify(progressData));
-          console.log('Auto-saved progress:', progressData);
+          console.log('Auto-saved progress after response:', {
+            responsesCount: updatedResponses.length,
+            questionIndex: currentQuestionIndex
+          });
         } catch (error) {
           console.error('Error auto-saving progress:', error);
         }

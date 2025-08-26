@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './components/auth/AuthProvider';
 import { AuthLayout } from './components/auth/AuthLayout';
 import { SignupForm } from './components/auth/SignupForm';
@@ -24,6 +24,7 @@ function AppContent() {
   const [isFromDashboard, setIsFromDashboard] = useState(false);
   const [responses, setResponses] = useState<Response[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [currentAssessmentId, setCurrentAssessmentId] = useState<string | null>(null);
 
   // Handler functions - declared early to avoid hoisting issues
   const handleStartAssessment = () => {
@@ -35,8 +36,50 @@ function AppContent() {
   };
 
   const handleAssessmentComplete = (result: AssessmentResult) => {
+    console.log('Assessment completed, saving result...');
+    
+    // Create completed assessment record
+    const completedAssessment: Assessment = {
+      id: currentAssessmentId || `assess-completed-${Date.now()}`,
+      name: 'My Brand Archetype Assessment',
+      description: `Assessment completed on ${new Date().toLocaleDateString()}`,
+      projectId: 'solo-project',
+      organisationId: organisation?.id || 'default-org',
+      templateId: 'template-1',
+      status: 'completed',
+      createdBy: user?.id || 'current-user',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      requireConsent: true,
+      allowAnonymous: false,
+      stats: {
+        totalInvited: 1,
+        totalStarted: 1,
+        totalCompleted: 1,
+        averageCompletionTime: 15
+      }
+    };
+
+    // Clear the saved progress since assessment is complete
+    localStorage.removeItem('assessmentProgress');
+    
+    // Save completed assessment
+    try {
+      const existingAssessments = JSON.parse(localStorage.getItem('userAssessments') || '[]');
+      const updatedAssessments = [completedAssessment, ...existingAssessments.filter((a: any) => a.id !== completedAssessment.id)];
+      localStorage.setItem('userAssessments', JSON.stringify(updatedAssessments));
+      
+      // Dispatch event to update dashboard
+      window.dispatchEvent(new CustomEvent('assessmentCompleted', {
+        detail: { assessment: completedAssessment }
+      }));
+    } catch (error) {
+      console.error('Error saving completed assessment:', error);
+    }
+
     setAssessmentResult(result);
     setCurrentState('results');
+    setCurrentAssessmentId(null);
   };
 
   const handleRestart = () => {
@@ -72,17 +115,12 @@ function AppContent() {
 
   const handleBackToDashboard = () => {
     // Save current progress before returning to dashboard
-    console.log('handleBackToDashboard called', { 
-      currentState, 
-      responsesLength: responses.length, 
-      isFromDashboard,
-      currentQuestionIndex 
-    });
+    console.log('Saving progress and returning to dashboard...');
     
-    if (currentState === 'assessment' && responses.length > 0 && isFromDashboard) {
-      console.log('Saving assessment progress...');
-      const newAssessment: Assessment = {
-        id: `assess-${Date.now()}`,
+    if (currentState === 'assessment' && responses.length > 0) {
+      const assessmentId = currentAssessmentId || `assess-${Date.now()}`;
+      const progressAssessment: Assessment = {
+        id: assessmentId,
         name: 'My Brand Archetype Assessment',
         description: `Assessment in progress - ${responses.length} questions answered`,
         projectId: 'solo-project',
@@ -102,35 +140,86 @@ function AppContent() {
         }
       };
       
-      // Store the assessment and responses for later continuation
+      // Save progress to localStorage
       const assessmentProgress = {
-        assessment: newAssessment,
+        assessment: progressAssessment,
         responses: responses,
         currentQuestionIndex: currentQuestionIndex
       };
       
-      // Save to localStorage for persistence
-      console.log('Saving to localStorage:', assessmentProgress);
+      console.log('Saving progress to localStorage:', assessmentProgress);
       localStorage.setItem('assessmentProgress', JSON.stringify(assessmentProgress));
       
       // Trigger event to update dashboard
-      console.log('Dispatching assessmentSaved event');
       window.dispatchEvent(new CustomEvent('assessmentSaved', {
-        detail: { assessment: newAssessment }
+        detail: { assessment: progressAssessment }
       }));
-    } else {
-      console.log('Not saving assessment - conditions not met:', {
-        currentState,
-        responsesLength: responses.length,
-        isFromDashboard
-      });
     }
     
     setCurrentState('landing');
     setIsFromDashboard(false);
     setResponses([]);
     setCurrentQuestionIndex(0);
+    setCurrentAssessmentId(null);
   };
+
+  // Event listeners for dashboard interactions
+  useEffect(() => {
+    const handleStartSoloAssessment = (event: CustomEvent) => {
+      console.log('Starting solo assessment from dashboard');
+      setIsFromDashboard(event.detail?.fromDashboard || false);
+      setResponses([]);
+      setCurrentQuestionIndex(0);
+      setCurrentAssessmentId(null);
+      setCurrentState('assessment');
+    };
+
+    const handleContinueAssessment = (event: CustomEvent) => {
+      const { assessmentId } = event.detail;
+      console.log('Continuing assessment:', assessmentId);
+      
+      try {
+        const savedProgress = localStorage.getItem('assessmentProgress');
+        if (savedProgress) {
+          const { responses: savedResponses, currentQuestionIndex: savedIndex } = JSON.parse(savedProgress);
+          console.log('Loaded saved progress:', { 
+            responsesCount: savedResponses?.length || 0, 
+            questionIndex: savedIndex 
+          });
+          
+          setResponses(savedResponses || []);
+          setCurrentQuestionIndex(savedIndex || 0);
+          setIsFromDashboard(true);
+          setCurrentAssessmentId(assessmentId);
+          setCurrentState('assessment');
+        } else {
+          console.log('No saved progress found for assessment, starting fresh');
+          setResponses([]);
+          setCurrentQuestionIndex(0);
+          setIsFromDashboard(true);
+          setCurrentAssessmentId(assessmentId);
+          setCurrentState('assessment');
+        }
+      } catch (error) {
+        console.error('Error loading saved progress:', error);
+        // Fallback to fresh start on error
+        setResponses([]);
+        setCurrentQuestionIndex(0);
+        setIsFromDashboard(true);
+        setCurrentAssessmentId(assessmentId);
+        setCurrentState('assessment');
+      }
+    };
+    
+    // Register event listeners
+    window.addEventListener('startSoloAssessment', handleStartSoloAssessment as EventListener);
+    window.addEventListener('continueAssessment', handleContinueAssessment as EventListener);
+    
+    return () => {
+      window.removeEventListener('startSoloAssessment', handleStartSoloAssessment as EventListener);
+      window.removeEventListener('continueAssessment', handleContinueAssessment as EventListener);
+    };
+  }, []);
 
   if (isLoading) {
     return (
