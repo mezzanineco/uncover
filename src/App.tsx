@@ -182,6 +182,32 @@ function AppContent() {
     };
 
     window.addEventListener('startSoloAssessment', handleSoloAssessment as EventListener);
+    
+    // Listen for continue assessment trigger from dashboard
+    const handleContinueAssessment = (event: CustomEvent) => {
+      const { assessmentId } = event.detail;
+      console.log('Continue assessment requested:', assessmentId);
+      
+      // Load saved progress from localStorage
+      try {
+        const savedProgress = localStorage.getItem('assessmentProgress');
+        if (savedProgress) {
+          const { responses: savedResponses, currentQuestionIndex: savedIndex } = JSON.parse(savedProgress);
+          setResponses(savedResponses || []);
+          setCurrentQuestionIndex(savedIndex || 0);
+          setIsFromDashboard(true);
+          setCurrentState('assessment');
+        }
+      } catch (error) {
+        console.error('Error loading saved progress:', error);
+        // Start fresh if can't load progress
+        setIsFromDashboard(true);
+        setCurrentState('assessment');
+      }
+    };
+
+    window.addEventListener('continueAssessment', handleContinueAssessment as EventListener);
+      window.removeEventListener('continueAssessment', handleContinueAssessment as EventListener);
     return () => window.removeEventListener('startSoloAssessment', handleSoloAssessment as EventListener);
   }, []);
 
