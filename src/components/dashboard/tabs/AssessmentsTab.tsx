@@ -101,6 +101,11 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [newInviteEmails, setNewInviteEmails] = useState('');
+  const [editingAssessment, setEditingAssessment] = useState<Assessment | null>(null);
+  const [showEditAssessmentModal, setShowEditAssessmentModal] = useState(false);
+  const [editSelectedMembers, setEditSelectedMembers] = useState<string[]>([]);
+  const [editNewInviteEmails, setEditNewInviteEmails] = useState('');
+  const [assessmentParticipants, setAssessmentParticipants] = useState<Record<string, any[]>>({});
 
   // Load assessments from localStorage on component mount
   useEffect(() => {
