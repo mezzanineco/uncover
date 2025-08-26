@@ -12,11 +12,23 @@ interface AssessmentFlowProps {
   onBackToDashboard?: () => void;
   title: string;
   description: string;
+  initialResponses?: Response[];
+  initialQuestionIndex?: number;
+  onProgressUpdate?: (responses: Response[], questionIndex: number) => void;
 }
 
-export function AssessmentFlow({ questions, onComplete, onBackToDashboard, title, description }: AssessmentFlowProps) {
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [responses, setResponses] = useState<Response[]>([]);
+export function AssessmentFlow({ 
+  questions, 
+  onComplete, 
+  onBackToDashboard, 
+  title, 
+  description,
+  initialResponses = [],
+  initialQuestionIndex = 0,
+  onProgressUpdate
+}: AssessmentFlowProps) {
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(initialQuestionIndex);
+  const [responses, setResponses] = useState<Response[]>(initialResponses);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentSection, setCurrentSection] = useState<'Broad' | 'Clarifier' | 'Validator'>('Broad');
 
@@ -47,12 +59,20 @@ export function AssessmentFlow({ questions, onComplete, onBackToDashboard, title
   const handleResponse = (response: Response) => {
     setResponses(prev => {
       const existing = prev.findIndex(r => r.questionId === response.questionId);
+      let updatedResponses;
       if (existing >= 0) {
-        const updated = [...prev];
-        updated[existing] = response;
-        return updated;
+        updatedResponses = [...prev];
+        updatedResponses[existing] = response;
+      } else {
+        updatedResponses = [...prev, response];
       }
-      return [...prev, response];
+      
+      // Notify parent of progress update
+      if (onProgressUpdate) {
+        onProgressUpdate(updatedResponses, currentQuestionIndex);
+      }
+      
+      return updatedResponses;
     });
   };
 

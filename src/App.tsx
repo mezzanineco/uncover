@@ -22,6 +22,8 @@ function AppContent() {
   const [verificationToken, setVerificationToken] = useState('');
   const [assessmentResult, setAssessmentResult] = useState<AssessmentResult | null>(null);
   const [isFromDashboard, setIsFromDashboard] = useState(false);
+  const [responses, setResponses] = useState<Response[]>([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
   // Handler functions - declared early to avoid hoisting issues
   const handleStartAssessment = () => {
@@ -69,8 +71,49 @@ function AppContent() {
   };
 
   const handleBackToDashboard = () => {
+    // Save current progress before returning to dashboard
+    if (currentState === 'assessment' && responses.length > 0) {
+      const newAssessment: Assessment = {
+        id: `assess-${Date.now()}`,
+        name: 'My Brand Archetype Assessment',
+        description: `Assessment in progress - ${responses.length} questions answered`,
+        projectId: 'solo-project',
+        organisationId: organisation?.id || 'default-org',
+        templateId: 'template-1',
+        status: 'active', // Changed from 'in_progress' to 'active' to match existing assessments
+        createdBy: user?.id || 'current-user',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        requireConsent: true,
+        allowAnonymous: false,
+        stats: {
+          totalInvited: 1,
+          totalStarted: 1,
+          totalCompleted: 0,
+          averageCompletionTime: undefined
+        }
+      };
+      
+      // Store the assessment and responses for later continuation
+      const assessmentProgress = {
+        assessment: newAssessment,
+        responses: responses,
+        currentQuestionIndex: currentQuestionIndex
+      };
+      
+      // Save to localStorage for persistence
+      localStorage.setItem('assessmentProgress', JSON.stringify(assessmentProgress));
+      
+      // Trigger event to update dashboard
+      window.dispatchEvent(new CustomEvent('assessmentSaved', {
+        detail: { assessment: newAssessment }
+      }));
+    }
+    
     setCurrentState('landing');
     setIsFromDashboard(false);
+    setResponses([]);
+    setCurrentQuestionIndex(0);
   };
 
   // Handle URL-based magic link verification
@@ -114,6 +157,12 @@ function AppContent() {
           description={ASSESSMENT_CONFIG.description}
           onComplete={handleAssessmentComplete}
           onBackToDashboard={isFromDashboard ? handleBackToDashboard : undefined}
+          initialResponses={responses}
+          initialQuestionIndex={currentQuestionIndex}
+          onProgressUpdate={(newResponses, newIndex) => {
+            setResponses(newResponses);
+            setCurrentQuestionIndex(newIndex);
+          }}
         />
       );
     }
