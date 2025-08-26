@@ -13,7 +13,8 @@ import {
   Calendar,
   Clock,
   CheckCircle,
-  X
+  X,
+  Edit3
 } from 'lucide-react';
 import { Button } from '../../common/Button';
 import type { Organisation, OrganisationMember, Assessment } from '../../../types/auth';
@@ -426,10 +427,11 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                         </div>
                       ) : (
                         <div 
-                          className="text-sm font-medium text-gray-900 cursor-pointer hover:text-blue-600"
+                          className="text-sm font-medium text-gray-900 cursor-pointer hover:text-blue-600 flex items-center group"
                           onClick={() => handleEditName(assessment.id, assessment.name)}
                         >
-                          {assessment.name}
+                          <span>{assessment.name}</span>
+                          <Edit3 className="w-3 h-3 ml-2 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                       )}
                       <div className="text-sm text-gray-500 max-w-xs truncate">
