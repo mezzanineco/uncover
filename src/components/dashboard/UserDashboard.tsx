@@ -68,7 +68,7 @@ export function UserDashboard({ user, organisation, member, onLogout, onStartAss
       user={user}
       organisation={organisation}
       member={member}
-      stats={stats}
+      stats={dynamicStats || stats}
       activeTab={activeTab}
       onTabChange={setActiveTab}
       onLogout={onLogout}
