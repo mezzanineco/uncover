@@ -296,9 +296,8 @@ export function TeamTab({ organisation, member }: TeamTabProps) {
           }
         }
       }
-      } catch (error) {
-        console.error('Error saving invites to localStorage:', error);
-      }
+    } catch (error) {
+      console.error('Error saving invites to localStorage:', error);
     }
   }, [pendingInvites]);
 
@@ -709,7 +708,7 @@ export function TeamTab({ organisation, member }: TeamTabProps) {
                 Cancel
               </Button>
               <Button
-                onClick={handleSavEdit}
+                onClick={handleSaveEdit}
                 disabled={!editForm.name.trim() || !editForm.email.trim()}
               >
                 Save Changes
