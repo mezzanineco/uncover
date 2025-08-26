@@ -9,12 +9,13 @@ import {
   Copy,
   Download,
   Eye,
-  Trash2,
+  MoreHorizontal,
   Calendar,
   Clock,
   CheckCircle,
   X,
-  Edit3
+  Edit3,
+  Trash2
 } from 'lucide-react';
 import { Button } from '../../common/Button';
 import type { Organisation, OrganisationMember, Assessment } from '../../../types/auth';
@@ -342,15 +343,14 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     setEditingName('');
   };
 
+  const handleDeleteAssessment = (assessmentId: string) => {
+    setAssessments(prev => prev.filter(assessment => assessment.id !== assessmentId));
+  };
+
   const isSoloAssessment = (assessment: Assessment) => {
     return assessment.stats.totalInvited === 1 && !assessment.roomCode;
   };
 
-  const handleDeleteAssessment = (assessmentId: string) => {
-    if (window.confirm('Are you sure you want to delete this assessment? This action cannot be undone.')) {
-      setAssessments(prev => prev.filter(assessment => assessment.id !== assessmentId));
-    }
-  };
   return (
     <div className="space-y-6">
       {/* Header */}
