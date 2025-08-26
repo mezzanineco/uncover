@@ -72,6 +72,21 @@ export function AssessmentFlow({
         onProgressUpdate(updatedResponses, currentQuestionIndex);
       }
       
+      // Auto-save progress to localStorage when from dashboard
+      if (onBackToDashboard) {
+        try {
+          const progressData = {
+            responses: updatedResponses,
+            currentQuestionIndex: currentQuestionIndex,
+            timestamp: new Date().toISOString()
+          };
+          localStorage.setItem('assessmentProgress', JSON.stringify(progressData));
+          console.log('Auto-saved progress:', progressData);
+        } catch (error) {
+          console.error('Error auto-saving progress:', error);
+        }
+      }
+      
       return updatedResponses;
     });
   };

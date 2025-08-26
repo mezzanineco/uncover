@@ -388,7 +388,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                         <Button
                           size="sm"
                           onClick={() => {
-                            // Continue the assessment
+                            console.log('Continue button clicked for assessment:', assessment.id);
                             window.dispatchEvent(new CustomEvent('continueAssessment', {
                               detail: { assessmentId: assessment.id }
                             }));
