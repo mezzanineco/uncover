@@ -119,18 +119,30 @@ export function TeamTab({ organisation, member }: TeamTabProps) {
       // Remove from pending invites
       setPendingInvites(prev => prev.filter(invite => invite.id !== inviteId));
       
-      // Add to team members
-      const newMember: TeamMember = {
-        id: `member-${Date.now()}`,
-        name: memberData.name || memberData.email.split('@')[0],
-        email: memberData.email,
-        role: memberData.role,
-        status: 'active',
-        joinedAt: new Date(),
-        lastActiveAt: new Date()
-      };
-      
-      setTeamMembers(prev => [...prev, newMember]);
+      // Check if member already exists to prevent duplicates
+      setTeamMembers(prev => {
+        const existingMember = prev.find(member => member.email === memberData.email);
+        if (existingMember) {
+          // Update existing member status instead of adding duplicate
+          return prev.map(member => 
+            member.email === memberData.email 
+              ? { ...member, status: 'active' as const, lastActiveAt: new Date() }
+              : member
+          );
+        } else {
+          // Add new member only if they don't exist
+          const newMember: TeamMember = {
+            id: `member-${Date.now()}`,
+            name: memberData.name || memberData.email.split('@')[0],
+            email: memberData.email,
+            role: memberData.role,
+            status: 'active',
+            joinedAt: new Date(),
+            lastActiveAt: new Date()
+          };
+          return [...prev, newMember];
+        }
+      });
       
       // Dispatch event to update header stats
       window.dispatchEvent(new CustomEvent('inviteChange'));
