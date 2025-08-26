@@ -177,22 +177,17 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     const handleAssessmentSaved = (event: CustomEvent) => {
       const { assessment } = event.detail;
       console.log('Assessment saved event received:', assessment);
-      console.log('Current assessments before update:', assessments);
       setAssessments(prevAssessments => {
-        console.log('Previous assessments:', prevAssessments);
         // Check if assessment already exists
         const existingIndex = prevAssessments.findIndex(a => a.id === assessment.id);
-        console.log('Existing assessment index:', existingIndex);
-        let updatedAssessments;
+        let updatedAssessments: Assessment[];
         if (existingIndex >= 0) {
           // Update existing assessment
           updatedAssessments = [...prevAssessments];
           updatedAssessments[existingIndex] = { ...assessment, updatedAt: new Date() };
-          console.log('Updated existing assessment:', updated);
         } else {
           // Add new assessment
           updatedAssessments = [{ ...assessment, updatedAt: new Date() }, ...prevAssessments];
-          console.log('Added new assessment:', newList);
         }
         // Sort by updatedAt descending (most recent first)
         return updatedAssessments.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
@@ -203,7 +198,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
       const { assessment } = event.detail;
       console.log('Assessment completed event received:', assessment);
       setAssessments(prevAssessments => {
-        let updatedAssessments;
+        let updatedAssessments: Assessment[];
         // Check if assessment already exists (from draft)
         const existingIndex = prevAssessments.findIndex(a => 
           a.name === assessment.name && (a.status === 'draft' || a.status === 'active' || a.status === 'in_progress')
@@ -306,13 +301,13 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     
     // Update the assessment's updatedAt timestamp when continuing
     setAssessments(prev => {
-      const updated = prev.map(assessment => 
+      const updatedAssessments = prev.map(assessment => 
         assessment.id === assessmentId 
           ? { ...assessment, updatedAt: new Date() }
           : assessment
       );
       // Sort by updatedAt descending (most recent first)
-      return updated.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      return updatedAssessments.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
     });
     
     window.dispatchEvent(new CustomEvent('continueAssessment', {
@@ -320,6 +315,35 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     }));
   };
 
+  const handleEditName = (assessmentId: string, currentName: string) => {
+    setEditingAssessmentId(assessmentId);
+    setEditingName(currentName);
+  };
+
+  const handleSaveName = (assessmentId: string) => {
+    if (editingName.trim()) {
+      setAssessments(prev => {
+        const updatedAssessments = prev.map(assessment => 
+          assessment.id === assessmentId 
+            ? { ...assessment, name: editingName.trim(), updatedAt: new Date() }
+            : assessment
+        );
+        // Sort by updatedAt descending (most recent first)
+        return updatedAssessments.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      });
+    }
+    setEditingAssessmentId(null);
+    setEditingName('');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingAssessmentId(null);
+    setEditingName('');
+  };
+
+  const isSoloAssessment = (assessment: Assessment) => {
+    return assessment.stats.totalInvited === 1 && !assessment.roomCode;
+  };
   const handleEditName = (assessmentId: string, currentName: string) => {
     setEditingAssessmentId(assessmentId);
     setEditingName(currentName);
@@ -400,7 +424,43 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                 <tr key={assessment.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <div>
-                      <div className="text-sm font-medium text-gray-900">{assessment.name}</div>
+                      {editingAssessmentId === assessment.id ? (
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="text"
+                            value={editingName}
+                            onChange={(e) => setEditingName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                handleSaveName(assessment.id);
+                              } else if (e.key === 'Escape') {
+                                handleCancelEdit();
+                              }
+                            }}
+                            className="text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => handleSaveName(assessment.id)}
+                            className="text-green-600 hover:text-green-800"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={handleCancelEdit}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div 
+                          className="text-sm font-medium text-gray-900 cursor-pointer hover:text-blue-600"
+                          onClick={() => handleEditName(assessment.id, assessment.name)}
+                        >
+                          {assessment.name}
+                        </div>
+                      )}
                       <div className="text-sm text-gray-500 max-w-xs truncate">
                         {assessment.status === 'in_progress' 
                           ? `Assessment in progress - ${getQuestionsAnswered(assessment.id)} questions answered`
@@ -440,6 +500,8 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                           <Copy className="w-4 h-4" />
                         </button>
                       </div>
+                    ) : isSoloAssessment(assessment) ? (
+                      <span className="text-sm text-gray-500">Solo Assessment</span>
                     ) : (
                       <Button
                         size="sm"
