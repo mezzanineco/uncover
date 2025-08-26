@@ -189,33 +189,35 @@ function AppContent() {
       console.log('Continue assessment requested:', assessmentId);
       
       // Load saved progress from localStorage
+      let savedResponses = [];
+      let savedIndex = 0;
+      let progressLoaded = false;
+      
       try {
         const savedProgress = localStorage.getItem('assessmentProgress');
         if (savedProgress) {
-          const { responses: savedResponses, currentQuestionIndex: savedIndex } = JSON.parse(savedProgress);
-          setResponses(savedResponses || []);
-          setCurrentQuestionIndex(savedIndex || 0);
-          setIsFromDashboard(true);
-          setCurrentState('assessment');
+          const parsed = JSON.parse(savedProgress);
+          savedResponses = parsed.responses || [];
+          savedIndex = parsed.currentQuestionIndex || 0;
+          progressLoaded = true;
         }
       } catch (error) {
+        console.error('Error loading saved progress:', error);
+        progressLoaded = false;
+      }
+      
+      if (progressLoaded) {
         console.log('Loading saved progress:', { savedResponses, savedIndex });
-        
-        // Set the state with saved progress
-        setResponses(savedResponses || []);
-        setCurrentQuestionIndex(savedIndex || 0);
-        setIsFromDashboard(true);
-        
-        // Navigate to assessment
-        setCurrentState('assessment');
+        setResponses(savedResponses);
+        setCurrentQuestionIndex(savedIndex);
       } else {
         console.log('No saved progress found, starting fresh');
-        // Start fresh if no saved progress
         setResponses([]);
         setCurrentQuestionIndex(0);
-        setIsFromDashboard(true);
-        setCurrentState('assessment');
       }
+      
+      setIsFromDashboard(true);
+      setCurrentState('assessment');
     };
 
       // Start fresh if error loading progress
