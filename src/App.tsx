@@ -88,7 +88,7 @@ function AppContent() {
         projectId: 'solo-project',
         organisationId: organisation?.id || 'default-org',
         templateId: 'template-1',
-        status: 'active',
+        status: 'in_progress',
         createdBy: user?.id || 'current-user',
         createdAt: new Date(),
         updatedAt: new Date(),

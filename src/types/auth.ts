@@ -59,7 +59,7 @@ export interface Assessment {
   projectId: string;
   organisationId: string;
   templateId: string;
-  status: 'draft' | 'active' | 'paused' | 'completed' | 'archived';
+  status: 'draft' | 'active' | 'in_progress' | 'paused' | 'completed' | 'archived';
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
