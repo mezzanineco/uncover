@@ -92,6 +92,52 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     }
   ]);
 
+  // Load assessments from localStorage on component mount
+  useEffect(() => {
+    const loadStoredAssessments = () => {
+      try {
+        const storedAssessments = localStorage.getItem('userAssessments');
+        if (storedAssessments) {
+          const parsedAssessments = JSON.parse(storedAssessments);
+          console.log('Loading stored assessments:', parsedAssessments);
+          setAssessments(prev => {
+            // Merge stored assessments with default ones, avoiding duplicates
+            const merged = [...prev];
+            parsedAssessments.forEach((stored: Assessment) => {
+              const existingIndex = merged.findIndex(a => a.id === stored.id);
+              if (existingIndex >= 0) {
+                merged[existingIndex] = stored;
+              } else {
+                merged.unshift(stored);
+              }
+            });
+            return merged;
+          });
+        }
+      } catch (error) {
+        console.error('Error loading stored assessments:', error);
+      }
+    };
+
+    loadStoredAssessments();
+  }, []);
+
+  // Save assessments to localStorage whenever assessments change
+  useEffect(() => {
+    try {
+      // Only save user-created assessments (not the default mock ones)
+      const userAssessments = assessments.filter(a => 
+        !['assess-1', 'assess-2', 'assess-3'].includes(a.id)
+      );
+      if (userAssessments.length > 0) {
+        localStorage.setItem('userAssessments', JSON.stringify(userAssessments));
+        console.log('Saved user assessments to localStorage:', userAssessments);
+      }
+    } catch (error) {
+      console.error('Error saving assessments to localStorage:', error);
+    }
+  }, [assessments]);
+
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
   const [showAssessmentTypeModal, setShowAssessmentTypeModal] = useState(false);
@@ -114,9 +160,6 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
           }
           return prev;
         });
-        
-        // Clear the saved progress since we've loaded it
-        localStorage.removeItem('assessmentProgress');
       }
     } catch (error) {
       console.error('Error loading saved assessment progress:', error);
