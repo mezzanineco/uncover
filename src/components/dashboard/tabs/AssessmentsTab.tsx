@@ -544,10 +544,6 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                       </button>
                     </div>
                   </td>
-                        </button>
-                      )}
-                    </div>
-                  </td>
                 </tr>
               ))}
             </tbody>
