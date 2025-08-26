@@ -9,7 +9,7 @@ import {
   Copy,
   Download,
   Eye,
-  MoreHorizontal,
+  Trash2,
   Calendar,
   Clock,
   CheckCircle,
@@ -346,6 +346,11 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     return assessment.stats.totalInvited === 1 && !assessment.roomCode;
   };
 
+  const handleDeleteAssessment = (assessmentId: string) => {
+    if (window.confirm('Are you sure you want to delete this assessment? This action cannot be undone.')) {
+      setAssessments(prev => prev.filter(assessment => assessment.id !== assessmentId));
+    }
+  };
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -519,17 +524,26 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                       )}
                       {canViewResults && (
                         <button className="text-blue-600 hover:text-blue-900">
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-4 h-4" title="View Results" />
                         </button>
                       )}
-                      {canExportResults && assessment.stats.totalCompleted > 0 && (
-                        <button className="text-green-600 hover:text-green-900">
+                      {assessment.status === 'completed' && (
+                        <button 
+                          className="text-green-600 hover:text-green-900"
+                          title="Download PDF"
+                        >
                           <Download className="w-4 h-4" />
                         </button>
                       )}
-                      {canEditAssessment && (
-                        <button className="text-gray-600 hover:text-gray-900">
-                          <MoreHorizontal className="w-4 h-4" />
+                      <button 
+                        className="text-red-600 hover:text-red-900"
+                        title="Delete Assessment"
+                        onClick={() => handleDeleteAssessment(assessment.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
                         </button>
                       )}
                     </div>
