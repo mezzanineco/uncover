@@ -344,35 +344,6 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
   const isSoloAssessment = (assessment: Assessment) => {
     return assessment.stats.totalInvited === 1 && !assessment.roomCode;
   };
-  const handleEditName = (assessmentId: string, currentName: string) => {
-    setEditingAssessmentId(assessmentId);
-    setEditingName(currentName);
-  };
-
-  const handleSaveName = (assessmentId: string) => {
-    if (editingName.trim()) {
-      setAssessments(prev => {
-        const updated = prev.map(assessment => 
-          assessment.id === assessmentId 
-            ? { ...assessment, name: editingName.trim(), updatedAt: new Date() }
-            : assessment
-        );
-        // Sort by updatedAt descending (most recent first)
-        return updated.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-      });
-    }
-    setEditingAssessmentId(null);
-    setEditingName('');
-  };
-
-  const handleCancelEdit = () => {
-    setEditingAssessmentId(null);
-    setEditingName('');
-  };
-
-  const isSoloAssessment = (assessment: Assessment) => {
-    return assessment.stats.totalInvited === 1 && !assessment.roomCode;
-  };
 
   return (
     <div className="space-y-6">
