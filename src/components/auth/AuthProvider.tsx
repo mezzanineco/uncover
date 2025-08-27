@@ -265,11 +265,61 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return;
       }
 
-      // Fallback to demo login for development
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock validation - in production, this would validate against your backend
-      if ((username === 'demo' || username === 'super') && password === 'password') {
+      // If Supabase auth fails, check for demo credentials
+      if (error && (username === 'demo' || username === 'super') && password === 'password') {
+        // For demo mode, create a temporary Supabase session
+        await createDemoSupabaseSession(username);
+      } else if (error) {
+        throw new Error('Invalid username or password');
+      }
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const createDemoSupabaseSession = async (username: string) => {
+    try {
+      // Try to sign up demo user in Supabase for database operations
+      const email = username === 'super' ? 'super@example.com' : 'demo@example.com';
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password: 'password123',
+        options: {
+          data: { 
+            username,
+            name: username === 'super' ? 'Super Admin' : 'Demo User'
+          }
+        }
+      });
+
+      if (data.user) {
+        await loadUserData(data.user.id, email);
+        return;
+      }
+
+      // If signup fails (user might already exist), try to sign in
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password: 'password123'
+      });
+
+      if (signInData.user) {
+        await loadUserData(signInData.user.id, email);
+        return;
+      }
+
+      // If both fail, fall back to mock data
+      await loadDemoUserData(username);
+    } catch (error) {
+      console.warn('Failed to create Supabase session, using mock data:', error);
+      await loadDemoUserData(username);
+    }
+  };
+
+  const loadDemoUserData = async (username?: string) => {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    if (username && (username === 'demo' || username === 'super')) {
         const isSuper = username === 'super';
         
         const mockUser: User = {
@@ -316,11 +366,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
           isLoading: false,
           isAuthenticated: true
         });
-      } else {
-        throw new Error('Invalid username or password');
-      }
-    } catch (error) {
-      throw error;
+      
+        // Store auth token
+        localStorage.setItem('auth_token', 'mock-jwt-token');
     }
   };
   
