@@ -443,6 +443,22 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     try {
       const storedInvites = localStorage.getItem(`assessmentInvites_${assessmentId}`);
       if (storedInvites) {
+        const parsedInvites = JSON.parse(storedInvites);
+        const invitesWithDates = parsedInvites.map((invite: any) => ({
+          ...invite,
+          invitedAt: new Date(invite.invitedAt),
+          expiresAt: new Date(invite.expiresAt)
+        }));
+        setPendingAssessmentInvites(invitesWithDates);
+      } else {
+        setPendingAssessmentInvites([]);
+      }
+    } catch (error) {
+      console.error('Error loading pending assessment invites:', error);
+      setPendingAssessmentInvites([]);
+    }
+  };
+
   const handleRemoveParticipant = (participantId: string) => {
     if (confirm('Are you sure you want to remove this participant from the assessment?')) {
       setAssessmentParticipants(prev => prev.filter(p => p.id !== participantId));
@@ -537,29 +553,6 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
       } catch (error) {
         console.error('Error saving invites:', error);
       }
-    }
-
-    // Update localStorage if it's a user-created assessment
-    try {
-      const storedAssessments = JSON.parse(localStorage.getItem('userAssessments') || '[]');
-      const updatedStored = storedAssessments.map((assessment: Assessment) =>
-        assessment.id === managingAssessment.id ? updatedAssessment : assessment
-      );
-      localStorage.setItem('userAssessments', JSON.stringify(updatedStored));
-    } catch (error) {
-      console.error('Error updating stored assessment:', error);
-    }
-
-    // Reset form and close modal
-    setTeamWorkshopForm({
-      name: '',
-      description: '',
-      maxParticipants: 50,
-      allowAnonymous: false,
-      showLiveResults: true
-    });
-    setSelectedMembers([]);
-    setMemberRoles({});
       
       // Save new invites to localStorage for this assessment
       if (newInviteEmails.trim()) {
@@ -584,6 +577,29 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
         // Save to localStorage
         localStorage.setItem(`assessmentInvites_${managingAssessment.id}`, JSON.stringify(allInvites));
       }
+    }
+
+    // Update localStorage if it's a user-created assessment
+    try {
+      const storedAssessments = JSON.parse(localStorage.getItem('userAssessments') || '[]');
+      const updatedStored = storedAssessments.map((assessment: Assessment) =>
+        assessment.id === managingAssessment.id ? updatedAssessment : assessment
+      );
+      localStorage.setItem('userAssessments', JSON.stringify(updatedStored));
+    } catch (error) {
+      console.error('Error updating stored assessment:', error);
+    }
+
+    // Reset form and close modal
+    setTeamWorkshopForm({
+      name: '',
+      description: '',
+      maxParticipants: 50,
+      allowAnonymous: false,
+      showLiveResults: true
+    });
+    setSelectedMembers([]);
+    setMemberRoles({});
     setNewInviteEmails('');
     setNewInviteRole('participant');
     setShowManageModal(false);
@@ -731,7 +747,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getParticipantStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
         return 'bg-green-100 text-green-800';
@@ -1129,7 +1145,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                               </div>
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap">
-                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(participant.status)}`}>
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getParticipantStatusColor(participant.status)}`}>
                                 {getStatusLabel(participant.status)}
                               </span>
                             </td>
@@ -1194,7 +1210,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                             </div>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(invite.status)}`}>
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getParticipantStatusColor(invite.status)}`}>
                               {getStatusLabel(invite.status)}
                             </span>
                             <button
