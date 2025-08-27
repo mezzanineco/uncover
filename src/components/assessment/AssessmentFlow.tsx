@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../auth/AuthProvider';
+import { useAuth } from '../../contexts/AuthContext';
 import { responseService, resultService } from '../../services/database';
 import type { ParsedQuestion, Response, AssessmentResult } from '../../types';
 import { QuestionCard } from './QuestionCard';
