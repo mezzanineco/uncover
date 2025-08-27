@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, 
+  Check,
   FileText, 
   Users, 
   Play, 
@@ -16,6 +17,8 @@ import {
   X,
   Edit3,
   Trash2,
+  UserPlus,
+  UserCheck,
   Mail
 } from 'lucide-react';
 import { Button } from '../../common/Button';
@@ -102,6 +105,8 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [newInviteEmails, setNewInviteEmails] = useState('');
   const [assessmentForm, setAssessmentForm] = useState({
+    name: 'Team Workshop Assessment',
+    description: '',
     name: '',
     notes: ''
   });
@@ -457,6 +462,24 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     window.dispatchEvent(new CustomEvent('inviteChange'));
   };
 
+  const handleSelectAll = () => {
+    const activeMembers = teamMembers.filter(m => m.status === 'active').map(m => m.id);
+    setSelectedMembers(activeMembers);
+    // Set default roles for all selected members
+    const defaultRoles: Record<string, 'user_admin' | 'participant'> = {};
+    activeMembers.forEach(id => {
+      const member = teamMembers.find(m => m.id === id);
+      defaultRoles[id] = member?.role || 'participant';
+    });
+    setMemberRoles(defaultRoles);
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedMembers([]);
+    setMemberRoles({});
+  };
+
+  const activeTeamMembers = teamMembers.filter(m => m.status === 'active');
   const handleCreateTeamWorkshop = () => {
     if (selectedMembers.length === 0 && !newInviteEmails.trim()) return;
 
@@ -830,7 +853,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
       {/* Team Workshop Creation Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Create Team Workshop</h3>
             
             <div className="space-y-6">
@@ -864,18 +887,57 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
               </div>
               
               <div className="border-t border-gray-200 pt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Select Participants
-                </label>
+                <div className="flex items-center justify-between mb-4">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Select Team Members
+                  </label>
+                  <div className="text-sm text-gray-500">
+                    {selectedMembers.length} of {activeTeamMembers.length} selected
+                  </div>
+                </div>
                 
                 {/* Existing Team Members */}
-                {teamMembers.length > 0 && (
+                {activeTeamMembers.length > 0 && (
                   <div className="mb-4">
-                    <div className="text-xs text-gray-500 mb-2">Existing Team Members ({teamMembers.filter(m => m.status === 'active').length} available)</div>
-                    <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-md p-3 bg-gray-50">
-                      {teamMembers.map((member) => (
-                        <div key={member.id} className="flex items-center justify-between py-1">
-                          <label className="flex items-center flex-1 min-w-0">
+                    {/* Select All/Deselect All Controls */}
+                    <div className="flex items-center justify-between mb-3 p-2 bg-gray-50 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleSelectAll}
+                          disabled={selectedMembers.length === activeTeamMembers.length}
+                          className="text-xs"
+                        >
+                          <UserCheck className="w-3 h-3 mr-1" />
+                          Select All
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleDeselectAll}
+                          disabled={selectedMembers.length === 0}
+                          className="text-xs"
+                        >
+                          <X className="w-3 h-3 mr-1" />
+                          Deselect All
+                        </Button>
+                      </div>
+                      <div className="text-xs text-gray-600 font-medium">
+                        {activeTeamMembers.length} available members
+                      </div>
+                    </div>
+
+                    {/* Member Checklist */}
+                    <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg bg-white">
+                      {activeTeamMembers.map((member, index) => (
+                        <div 
+                          key={member.id} 
+                          className={`flex items-center justify-between p-3 hover:bg-gray-50 transition-colors ${
+                            index !== activeTeamMembers.length - 1 ? 'border-b border-gray-100' : ''
+                          }`}
+                        >
+                          <label className="flex items-center flex-1 min-w-0 cursor-pointer">
                             <input
                               type="checkbox"
                               checked={selectedMembers.includes(member.id)}
@@ -891,34 +953,45 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                                   });
                                 }
                               }}
-                              className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-2 flex-shrink-0"
-                              disabled={member.status === 'suspended'}
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 mr-3 flex-shrink-0"
                             />
-                            <div className="flex-1 min-w-0">
-                              <span className={`text-sm font-medium truncate ${member.status === 'suspended' ? 'text-gray-400' : 'text-gray-900'}`}>
-                                {member.name}
+                            
+                            {/* Member Avatar */}
+                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                              <span className="text-xs font-medium text-blue-600">
+                                {member.name.charAt(0).toUpperCase()}
                               </span>
+                            </div>
+                            
+                            {/* Member Info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center">
+                                <span className="text-sm font-medium text-gray-900 truncate">
+                                  {member.name}
+                                </span>
+                                {selectedMembers.includes(member.id) && (
+                                  <Check className="w-4 h-4 text-green-500 ml-2 flex-shrink-0" />
+                                )}
+                              </div>
                               <div className="text-xs text-gray-500 truncate">{member.email}</div>
-                              {member.status === 'suspended' && (
-                                <span className="text-xs text-red-400">(Suspended)</span>
-                              )}
-                              {member.status === 'invited' && (
-                                <span className="text-xs text-amber-500">(Pending)</span>
-                              )}
                             </div>
                           </label>
+                          
+                          {/* Role Selection */}
                           {selectedMembers.includes(member.id) && (
-                            <select
-                              value={memberRoles[member.id] || member.role}
-                              onChange={(e) => setMemberRoles(prev => ({ 
-                                ...prev, 
-                                [member.id]: e.target.value as 'user_admin' | 'participant' 
-                              }))}
-                              className="ml-2 text-xs border border-gray-300 rounded px-1 py-0.5 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                            >
-                              <option value="participant">Participant</option>
-                              <option value="user_admin">Admin</option>
-                            </select>
+                            <div className="ml-3 flex-shrink-0">
+                              <select
+                                value={memberRoles[member.id] || member.role}
+                                onChange={(e) => setMemberRoles(prev => ({ 
+                                  ...prev, 
+                                  [member.id]: e.target.value as 'user_admin' | 'participant' 
+                                }))}
+                                className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                              >
+                                <option value="participant">Participant</option>
+                                <option value="user_admin">Admin</option>
+                              </select>
+                            </div>
                           )}
                         </div>
                       ))}
@@ -926,67 +999,92 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                   </div>
                 )}
                 
-                {/* New Invites */}
-                <div>
-                  <div className="text-xs text-gray-500 mb-2">Invite New Members</div>
-                  <textarea
-                    value={newInviteEmails}
-                    onChange={(e) => {
-                      setNewInviteEmails(e.target.value);
-                      // Initialize roles for new emails
-                      const emails = e.target.value.split(',').map(email => email.trim()).filter(email => email);
-                      const newRoles: Record<string, 'user_admin' | 'participant'> = {};
-                      emails.forEach(email => {
-                        if (!newMemberRoles[email]) {
-                          newRoles[email] = 'participant';
-                        }
-                      });
-                      setNewMemberRoles(prev => ({ ...prev, ...newRoles }));
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    rows={2}
-                    placeholder="john@company.com, sarah@company.com"
-                  />
-                  
-                  {/* Role selection for new emails */}
-                  {newInviteEmails.trim() && (
-                    <div className="mt-2 space-y-2">
-                      <div className="text-xs text-gray-500">Set roles for new members:</div>
-                      {newInviteEmails.split(',').map(email => email.trim()).filter(email => email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)).map(email => (
-                        <div key={email} className="flex items-center justify-between bg-blue-50 px-2 py-1 rounded">
-                          <span className="text-sm text-gray-700 truncate flex-1">{email}</span>
-                          <select
-                            value={newMemberRoles[email] || 'participant'}
-                            onChange={(e) => setNewMemberRoles(prev => ({ 
-                              ...prev, 
-                              [email]: e.target.value as 'user_admin' | 'participant' 
-                            }))}
-                            className="ml-2 text-xs border border-gray-300 rounded px-1 py-0.5 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                          >
-                            <option value="participant">Participant</option>
-                            <option value="user_admin">Admin</option>
-                          </select>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                {/* No Team Members State */}
+                {activeTeamMembers.length === 0 && (
+                  <div className="text-center py-6 border border-gray-200 rounded-lg bg-gray-50">
+                    <Users className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600 mb-1">No active team members found</p>
+                    <p className="text-xs text-gray-500">Add team members in the Team tab first, or invite new members below</p>
+                  </div>
+                )}
                 
-                {/* Participant Count Summary */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
-                  <div className="text-sm text-blue-800">
-                    <strong>Selected:</strong> {selectedMembers.length} existing members
+                {/* Invite New Members Section */}
+                <div className="border-t border-gray-200 pt-4">
+                  <div className="flex items-center mb-3">
+                    <UserPlus className="w-4 h-4 text-gray-500 mr-2" />
+                    <label className="block text-sm font-medium text-gray-700">
+                      Invite New Members
+                    </label>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <textarea
+                      value={newInviteEmails}
+                      onChange={(e) => {
+                        setNewInviteEmails(e.target.value);
+                        // Initialize roles for new emails
+                        const emails = e.target.value.split(',').map(email => email.trim()).filter(email => email);
+                        const newRoles: Record<string, 'user_admin' | 'participant'> = {};
+                        emails.forEach(email => {
+                          if (!newMemberRoles[email]) {
+                            newRoles[email] = 'participant';
+                          }
+                        });
+                        setNewMemberRoles(prev => ({ ...prev, ...newRoles }));
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                      rows={2}
+                      placeholder="Enter email addresses separated by commas (e.g., john@company.com, sarah@company.com)"
+                    />
+                    
+                    <div className="text-xs text-gray-500 flex items-center">
+                      <Mail className="w-3 h-3 mr-1" />
+                      New members will be added to your team as 'pending' until they accept the invitation
+                    </div>
+                    
+                    {/* Role Assignment for New Invites */}
                     {newInviteEmails.trim() && (
-                      <>
-                        <br />
-                        <strong>New invites:</strong> {newInviteEmails.split(',').filter(email => email.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())).length} emails
-                      </>
+                      <div className="space-y-2">
+                        <div className="text-xs font-medium text-gray-700 mb-2">Set roles for new members:</div>
+                        <div className="max-h-24 overflow-y-auto space-y-1">
+                          {newInviteEmails.split(',')
+                            .map(email => email.trim())
+                            .filter(email => email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+                            .map(email => (
+                              <div key={email} className="flex items-center justify-between bg-blue-50 px-3 py-2 rounded-lg">
+                                <div className="flex items-center flex-1 min-w-0">
+                                  <div className="w-6 h-6 bg-blue-200 rounded-full flex items-center justify-center mr-2 flex-shrink-0">
+                                    <Mail className="w-3 h-3 text-blue-600" />
+                                  </div>
+                                  <span className="text-sm text-gray-700 truncate">{email}</span>
+                                </div>
+                                <select
+                                  value={newMemberRoles[email] || 'participant'}
+                                  onChange={(e) => setNewMemberRoles(prev => ({ 
+                                    ...prev, 
+                                    [email]: e.target.value as 'user_admin' | 'participant' 
+                                  }))}
+                                  className="ml-3 text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white flex-shrink-0"
+                                >
+                                  <option value="participant">Participant</option>
+                                  <option value="user_admin">Admin</option>
+                                </select>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
                     )}
-                    <br />
-                    <strong>Total participants:</strong> {selectedMembers.length + (newInviteEmails.split(',').filter(email => email.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())).length)}
                   </div>
                 </div>
-              </div>
+                
+                {/* Summary Section */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-medium text-blue-900 mb-1">Assessment Summary</h4>
+                      <div className="text-sm text-blue-800 space-y-1">
+                        <div className="flex items-center">
+                          <Users className="w-4 h-4 mr-2" />
             </div>
             
             <div className="flex justify-end space-x-3 mt-6">
@@ -996,7 +1094,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                   setShowCreateModal(false);
                   setSelectedMembers([]);
                   setNewInviteEmails('');
-                  setAssessmentForm({ name: '', notes: '' });
+                  setAssessmentForm({ name: 'Team Workshop Assessment', description: '', notes: '' });
                   setMemberRoles({});
                   setNewMemberRoles({});
                 }}
@@ -1007,7 +1105,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                 onClick={handleCreateTeamWorkshop}
                 disabled={!assessmentForm.name.trim() || (selectedMembers.length === 0 && !newInviteEmails.trim())}
               >
-                <Users className="w-4 h-4 mr-2" />
+                <Play className="w-4 h-4 mr-2" />
                 Start Assessment
               </Button>
             </div>
