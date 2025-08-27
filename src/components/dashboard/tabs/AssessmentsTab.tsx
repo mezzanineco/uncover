@@ -107,7 +107,6 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
   const [assessmentForm, setAssessmentForm] = useState({
     name: 'Team Workshop Assessment',
     description: '',
-    name: '',
     notes: ''
   });
   const [memberRoles, setMemberRoles] = useState<Record<string, 'user_admin' | 'participant'>>({});
@@ -1085,6 +1084,13 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                       <div className="text-sm text-blue-800 space-y-1">
                         <div className="flex items-center">
                           <Users className="w-4 h-4 mr-2" />
+                          Total participants: {selectedMembers.length + (newInviteEmails.split(',').filter(email => email.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())).length)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             
             <div className="flex justify-end space-x-3 mt-6">
