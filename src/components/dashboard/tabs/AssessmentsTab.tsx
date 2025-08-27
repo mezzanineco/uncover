@@ -533,9 +533,9 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
 
     // Create the assessment
     const totalParticipants = selectedMembers.length + newEmails.length;
-    const newAssessment: Assessment = {
+    const newAssessment = {
       id: `assess-${Date.now()}`,
-      name: workshopForm.name || 'Team Workshop Assessment',
+      name: teamWorkshopForm.name || 'Team Workshop Assessment',
       description: `Team workshop with ${totalParticipants} participants`,
       projectId: 'team-project',
       organisationId: organisation.id,
@@ -557,7 +557,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     };
 
     setAssessments(prev => [newAssessment, ...prev]);
-    
+    setTeamWorkshopForm({ name: '', description: '', selectedMembers: [], newInvites: [] });
     // Reset form
     setSelectedMembers([]);
     setNewInviteEmails('');
