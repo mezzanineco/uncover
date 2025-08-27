@@ -45,6 +45,9 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
   const [memberRoles, setMemberRoles] = useState<Record<string, 'user_admin' | 'participant'>>({});
   const [newInviteEmails, setNewInviteEmails] = useState('');
   const [newInviteRole, setNewInviteRole] = useState<'user_admin' | 'participant'>('participant');
+  const [editingAssessment, setEditingAssessment] = useState<Assessment | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', description: '' });
   const [teamWorkshopForm, setTeamWorkshopForm] = useState({
     name: '',
     description: '',
@@ -295,6 +298,65 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     setShowTeamWorkshopModal(false);
   };
 
+  const handleEditAssessment = (assessment: Assessment) => {
+    setEditingAssessment(assessment);
+    setEditForm({
+      name: assessment.name,
+      description: assessment.description || ''
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingAssessment || !editForm.name.trim()) return;
+
+    const updatedAssessment = {
+      ...editingAssessment,
+      name: editForm.name,
+      description: editForm.description,
+      updatedAt: new Date()
+    };
+
+    setAssessments(prev => prev.map(assessment => 
+      assessment.id === editingAssessment.id ? updatedAssessment : assessment
+    ));
+
+    // Update localStorage if it's a user-created assessment
+    try {
+      const storedAssessments = JSON.parse(localStorage.getItem('userAssessments') || '[]');
+      const updatedStored = storedAssessments.map((assessment: Assessment) =>
+        assessment.id === editingAssessment.id ? updatedAssessment : assessment
+      );
+      localStorage.setItem('userAssessments', JSON.stringify(updatedStored));
+    } catch (error) {
+      console.error('Error updating stored assessment:', error);
+    }
+
+    setShowEditModal(false);
+    setEditingAssessment(null);
+    setEditForm({ name: '', description: '' });
+  };
+
+  const handleDeleteAssessment = (assessmentId: string) => {
+    if (!confirm('Are you sure you want to delete this assessment? This action cannot be undone.')) {
+      return;
+    }
+
+    setAssessments(prev => prev.filter(assessment => assessment.id !== assessmentId));
+
+    // Remove from localStorage if it exists
+    try {
+      const storedAssessments = JSON.parse(localStorage.getItem('userAssessments') || '[]');
+      const filteredStored = storedAssessments.filter((assessment: Assessment) => assessment.id !== assessmentId);
+      localStorage.setItem('userAssessments', JSON.stringify(filteredStored));
+
+      // Also remove any progress data for this assessment
+      localStorage.removeItem(`assessmentProgress_${assessmentId}`);
+    } catch (error) {
+      console.error('Error deleting stored assessment:', error);
+    }
+  };
+
   const handleSelectAllMembers = () => {
     const activeMembers = teamMembers.filter(m => m.status === 'active');
     setSelectedMembers(activeMembers.map(m => m.id));
@@ -390,85 +452,118 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
         )}
       </div>
 
-      {/* Assessments Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {assessments.map((assessment) => (
-          <div key={assessment.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex-1">
-                <h3 className="font-semibold text-gray-900 mb-2">{assessment.name}</h3>
-                <div className="flex items-center text-sm text-gray-500 mb-2">
-                  <Calendar className="w-4 h-4 mr-1" />
-                  {new Date(assessment.createdAt).toLocaleDateString()}
-                </div>
-                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(assessment.status)}`}>
-                  {assessment.status.replace('_', ' ')}
-                </span>
-              </div>
-              
-              {(canEditAssessment || canDeleteAssessment) && (
-                <div className="relative">
-                  <button className="p-1 text-gray-400 hover:text-gray-600 rounded">
-                    <MoreHorizontal className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {assessment.description && (
-              <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                {assessment.description}
-              </p>
-            )}
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-              <div className="text-center p-2 bg-gray-50 rounded">
-                <div className="font-semibold text-gray-900">{assessment.stats.totalInvited}</div>
-                <div className="text-gray-500">Invited</div>
-              </div>
-              <div className="text-center p-2 bg-gray-50 rounded">
-                <div className="font-semibold text-gray-900">{assessment.stats.totalCompleted}</div>
-                <div className="text-gray-500">Completed</div>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-2">
-              {assessment.status === 'in_progress' && (
-                <Button 
-                  size="sm" 
-                  onClick={() => handleContinueAssessment(assessment.id)}
-                  className="flex-1"
-                >
-                  <Play className="w-4 h-4 mr-1" />
-                  Continue
-                </Button>
-              )}
-              {assessment.status === 'active' && (
-                <Button variant="outline" size="sm" className="flex-1">
-                  <Users className="w-4 h-4 mr-1" />
-                  Manage
-                </Button>
-              )}
-              {assessment.status === 'completed' && (
-                <Button variant="outline" size="sm" className="flex-1">
-                  View Results
-                </Button>
-              )}
-              {assessment.status === 'draft' && (
-                <Button size="sm" className="flex-1">
-                  <Play className="w-4 h-4 mr-1" />
-                  Launch
-                </Button>
-              )}
-            </div>
-          </div>
-        ))}
-
+      {/* Assessments Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Assessment
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Participants
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Created
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {assessments.map((assessment) => (
+                <tr key={assessment.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{assessment.name}</div>
+                      {assessment.description && (
+                        <div className="text-sm text-gray-500 max-w-xs truncate">
+                          {assessment.description}
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(assessment.status)}`}>
+                      {assessment.status.replace('_', ' ')}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {assessment.stats.totalCompleted}/{assessment.stats.totalInvited}
+                    </div>
+                    <div className="text-sm text-gray-500">completed</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center text-sm text-gray-500">
+                      <Calendar className="w-4 h-4 mr-1" />
+                      {new Date(assessment.createdAt).toLocaleDateString()}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex items-center space-x-2">
+                      {assessment.status === 'in_progress' && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleContinueAssessment(assessment.id)}
+                        >
+                          <Play className="w-4 h-4 mr-1" />
+                          Continue
+                        </Button>
+                      )}
+                      {assessment.status === 'active' && (
+                        <Button variant="outline" size="sm">
+                          <Users className="w-4 h-4 mr-1" />
+                          Manage
+                        </Button>
+                      )}
+                      {assessment.status === 'completed' && (
+                        <Button variant="outline" size="sm">
+                          View Results
+                        </Button>
+                      )}
+                      {assessment.status === 'draft' && (
+                        <Button size="sm">
+                          <Play className="w-4 h-4 mr-1" />
+                          Launch
+                        </Button>
+                      )}
+                      
+                      {canEditAssessment && (
+                        <button
+                          onClick={() => handleEditAssessment(assessment)}
+                          className="text-blue-600 hover:text-blue-900 p-1"
+                          title="Edit Assessment"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                      )}
+                      
+                      {canDeleteAssessment && (
+                        <button
+                          onClick={() => handleDeleteAssessment(assessment.id)}
+                          className="text-red-600 hover:text-red-900 p-1"
+                          title="Delete Assessment"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        
         {/* Empty state */}
         {assessments.length === 0 && (
-          <div className="col-span-full text-center py-12">
+          <div className="text-center py-12">
             <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No assessments yet</h3>
             <p className="text-gray-600 mb-4">
@@ -523,6 +618,62 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                 onClick={() => setShowCreateModal(false)}
               >
                 Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Assessment Modal */}
+      {showEditModal && editingAssessment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Assessment</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Assessment Name *
+                </label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter assessment name"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={editForm.description}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  rows={3}
+                  placeholder="Describe your assessment (optional)"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingAssessment(null);
+                  setEditForm({ name: '', description: '' });
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveEdit}
+                disabled={!editForm.name.trim()}
+              >
+                Save Changes
               </Button>
             </div>
           </div>
