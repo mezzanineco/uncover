@@ -535,7 +535,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     const totalParticipants = selectedMembers.length + newEmails.length;
     const newAssessment: Assessment = {
       id: `assess-${Date.now()}`,
-      name: 'Team Workshop Assessment',
+      name: workshopForm.name || 'Team Workshop Assessment',
       description: `Team workshop with ${totalParticipants} participants`,
       projectId: 'team-project',
       organisationId: organisation.id,
