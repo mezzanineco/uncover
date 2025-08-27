@@ -101,6 +101,12 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [newInviteEmails, setNewInviteEmails] = useState('');
+  const [assessmentForm, setAssessmentForm] = useState({
+    name: '',
+    notes: ''
+  });
+  const [memberRoles, setMemberRoles] = useState<Record<string, 'user_admin' | 'participant'>>({});
+  const [newMemberRoles, setNewMemberRoles] = useState<Record<string, 'user_admin' | 'participant'>>({});
   const [editingAssessment, setEditingAssessment] = useState<Assessment | null>(null);
   const [showEditAssessmentModal, setShowEditAssessmentModal] = useState(false);
   const [editSelectedMembers, setEditSelectedMembers] = useState<string[]>([]);
@@ -824,47 +830,97 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
       {/* Team Workshop Creation Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Create Team Workshop</h3>
             
             <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              {/* Assessment Details */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Assessment Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={assessmentForm.name}
+                    onChange={(e) => setAssessmentForm(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter assessment name"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Notes (Optional)
+                  </label>
+                  <textarea
+                    value={assessmentForm.notes}
+                    onChange={(e) => setAssessmentForm(prev => ({ ...prev, notes: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    rows={2}
+                    placeholder="Add any notes or instructions for this assessment"
+                  />
+                </div>
+              </div>
+              
+              <div className="border-t border-gray-200 pt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
                   Select Participants
                 </label>
                 
                 {/* Existing Team Members */}
                 {teamMembers.length > 0 && (
-                  <div className="mb-3">
-                    <div className="text-xs text-gray-500 mb-2">Team Members ({teamMembers.filter(m => m.status === 'active').length} available)</div>
-                    <div className="max-h-24 overflow-y-auto border border-gray-200 rounded-md p-2 bg-gray-50">
+                  <div className="mb-4">
+                    <div className="text-xs text-gray-500 mb-2">Existing Team Members ({teamMembers.filter(m => m.status === 'active').length} available)</div>
+                    <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-md p-3 bg-gray-50">
                       {teamMembers.map((member) => (
-                        <label key={member.id} className="flex items-center py-1 text-sm">
-                          <input
-                            type="checkbox"
-                            checked={selectedMembers.includes(member.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedMembers(prev => [...prev, member.id]);
-                              } else {
-                                setSelectedMembers(prev => prev.filter(id => id !== member.id));
-                              }
-                            }}
-                            className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-2"
-                            disabled={member.status === 'suspended'}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <span className={`font-medium truncate ${member.status === 'suspended' ? 'text-gray-400' : 'text-gray-900'}`}>
-                              {member.name}
-                            </span>
-                            {member.status === 'suspended' && (
-                              <span className="text-xs text-red-400 ml-1">(Suspended)</span>
-                            )}
-                            {member.status === 'invited' && (
-                              <span className="text-xs text-amber-500 ml-1">(Pending)</span>
-                            )}
-                          </div>
-                        </label>
+                        <div key={member.id} className="flex items-center justify-between py-1">
+                          <label className="flex items-center flex-1 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={selectedMembers.includes(member.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedMembers(prev => [...prev, member.id]);
+                                  setMemberRoles(prev => ({ ...prev, [member.id]: member.role }));
+                                } else {
+                                  setSelectedMembers(prev => prev.filter(id => id !== member.id));
+                                  setMemberRoles(prev => {
+                                    const { [member.id]: removed, ...rest } = prev;
+                                    return rest;
+                                  });
+                                }
+                              }}
+                              className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-2 flex-shrink-0"
+                              disabled={member.status === 'suspended'}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <span className={`text-sm font-medium truncate ${member.status === 'suspended' ? 'text-gray-400' : 'text-gray-900'}`}>
+                                {member.name}
+                              </span>
+                              <div className="text-xs text-gray-500 truncate">{member.email}</div>
+                              {member.status === 'suspended' && (
+                                <span className="text-xs text-red-400">(Suspended)</span>
+                              )}
+                              {member.status === 'invited' && (
+                                <span className="text-xs text-amber-500">(Pending)</span>
+                              )}
+                            </div>
+                          </label>
+                          {selectedMembers.includes(member.id) && (
+                            <select
+                              value={memberRoles[member.id] || member.role}
+                              onChange={(e) => setMemberRoles(prev => ({ 
+                                ...prev, 
+                                [member.id]: e.target.value as 'user_admin' | 'participant' 
+                              }))}
+                              className="ml-2 text-xs border border-gray-300 rounded px-1 py-0.5 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            >
+                              <option value="participant">Participant</option>
+                              <option value="user_admin">Admin</option>
+                            </select>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -875,17 +931,51 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                   <div className="text-xs text-gray-500 mb-2">Invite New Members</div>
                   <textarea
                     value={newInviteEmails}
-                    onChange={(e) => setNewInviteEmails(e.target.value)}
+                    onChange={(e) => {
+                      setNewInviteEmails(e.target.value);
+                      // Initialize roles for new emails
+                      const emails = e.target.value.split(',').map(email => email.trim()).filter(email => email);
+                      const newRoles: Record<string, 'user_admin' | 'participant'> = {};
+                      emails.forEach(email => {
+                        if (!newMemberRoles[email]) {
+                          newRoles[email] = 'participant';
+                        }
+                      });
+                      setNewMemberRoles(prev => ({ ...prev, ...newRoles }));
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     rows={2}
                     placeholder="john@company.com, sarah@company.com"
                   />
+                  
+                  {/* Role selection for new emails */}
+                  {newInviteEmails.trim() && (
+                    <div className="mt-2 space-y-2">
+                      <div className="text-xs text-gray-500">Set roles for new members:</div>
+                      {newInviteEmails.split(',').map(email => email.trim()).filter(email => email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)).map(email => (
+                        <div key={email} className="flex items-center justify-between bg-blue-50 px-2 py-1 rounded">
+                          <span className="text-sm text-gray-700 truncate flex-1">{email}</span>
+                          <select
+                            value={newMemberRoles[email] || 'participant'}
+                            onChange={(e) => setNewMemberRoles(prev => ({ 
+                              ...prev, 
+                              [email]: e.target.value as 'user_admin' | 'participant' 
+                            }))}
+                            className="ml-2 text-xs border border-gray-300 rounded px-1 py-0.5 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="participant">Participant</option>
+                            <option value="user_admin">Admin</option>
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 
-                {/* Participant Count */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                {/* Participant Count Summary */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
                   <div className="text-sm text-blue-800">
-                    <strong>Selected:</strong> {selectedMembers.length} team members
+                    <strong>Selected:</strong> {selectedMembers.length} existing members
                     {newInviteEmails.trim() && (
                       <>
                         <br />
@@ -906,13 +996,16 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                   setShowCreateModal(false);
                   setSelectedMembers([]);
                   setNewInviteEmails('');
+                  setAssessmentForm({ name: '', notes: '' });
+                  setMemberRoles({});
+                  setNewMemberRoles({});
                 }}
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleCreateTeamWorkshop}
-                disabled={selectedMembers.length === 0 && !newInviteEmails.trim()}
+                disabled={!assessmentForm.name.trim() || (selectedMembers.length === 0 && !newInviteEmails.trim())}
               >
                 <Users className="w-4 h-4 mr-2" />
                 Start Assessment
