@@ -189,6 +189,14 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
   const [teamWorkshopForm, setTeamWorkshopForm] = useState({
     name: '',
     description: '',
+    selectedMembers: [] as string[],
+    memberRoles: {} as Record<string, 'user_admin' | 'participant'>,
+    newInvites: '',
+    newInviteRole: 'participant' as 'user_admin' | 'participant'
+  });
+  const [teamWorkshopForm, setTeamWorkshopForm] = useState({
+    name: '',
+    description: '',
     date: '',
     time: '',
     participants: []
@@ -215,15 +223,6 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     }
   }, []);
 
-  // Listen for saved assessments
-  useEffect(() => {
-    console.log('Setting up event listeners in AssessmentsTab');
-    
-    const handleAssessmentSaved = (event: CustomEvent) => {
-      const { assessment } = event.detail;
-      console.log('Assessment saved event received:', assessment);
-      setAssessments(prevAssessments => {
-        // Check if assessment already exists
         const existingIndex = prevAssessments.findIndex(a => a.id === assessment.id);
         let updatedAssessments: Assessment[];
         if (existingIndex >= 0) {
