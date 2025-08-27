@@ -61,6 +61,8 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     allowAnonymous: false,
     showLiveResults: true
   });
+  const [showManageModal, setShowManageModal] = useState(false);
+  const [managingAssessment, setManagingAssessment] = useState<Assessment | null>(null);
 
   // Load assessments and team members on component mount
   useEffect(() => {
@@ -346,6 +348,104 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     window.dispatchEvent(new CustomEvent('assessmentUpdated'));
   };
 
+  const handleManageAssessment = (assessment: Assessment) => {
+    setManagingAssessment(assessment);
+    
+    // Pre-populate form with current assessment data
+    setTeamWorkshopForm({
+      name: assessment.name,
+      description: assessment.description || '',
+      maxParticipants: 50,
+      allowAnonymous: assessment.allowAnonymous,
+      showLiveResults: true
+    });
+    
+    // Load current participants/invites for this assessment
+    // In a real app, this would fetch from the backend
+    setSelectedMembers([]);
+    setMemberRoles({});
+    setNewInviteEmails('');
+    setNewInviteRole('participant');
+    
+    setShowManageModal(true);
+  };
+
+  const handleUpdateAssessment = () => {
+    if (!managingAssessment || !teamWorkshopForm.name.trim()) return;
+
+    const updatedAssessment: Assessment = {
+      ...managingAssessment,
+      name: teamWorkshopForm.name,
+      description: teamWorkshopForm.description,
+      allowAnonymous: teamWorkshopForm.allowAnonymous,
+      updatedAt: new Date(),
+      stats: {
+        ...managingAssessment.stats,
+        totalInvited: managingAssessment.stats.totalInvited + selectedMembers.length + (newInviteEmails ? newInviteEmails.split(',').filter(e => e.trim()).length : 0)
+      }
+    };
+
+    // Update assessment in list
+    setAssessments(prev => prev.map(assessment => 
+      assessment.id === managingAssessment.id ? updatedAssessment : assessment
+    ));
+
+    // Handle new invites
+    if (newInviteEmails.trim()) {
+      const emails = newInviteEmails.split(',').map(e => e.trim()).filter(e => e);
+      const newInvites = emails.map(email => ({
+        id: `invite-${Date.now()}-${Math.random()}`,
+        email,
+        organisationId: organisation.id,
+        assessmentId: managingAssessment.id,
+        role: newInviteRole,
+        status: 'pending' as const,
+        invitedBy: 'current-user',
+        invitedAt: new Date(),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        token: `token-${Date.now()}`
+      }));
+
+      // Add to pending invites
+      try {
+        const existingInvites = JSON.parse(localStorage.getItem('pendingInvites') || '[]');
+        localStorage.setItem('pendingInvites', JSON.stringify([...existingInvites, ...newInvites]));
+        window.dispatchEvent(new CustomEvent('inviteChange'));
+      } catch (error) {
+        console.error('Error saving invites:', error);
+      }
+    }
+
+    // Update localStorage if it's a user-created assessment
+    try {
+      const storedAssessments = JSON.parse(localStorage.getItem('userAssessments') || '[]');
+      const updatedStored = storedAssessments.map((assessment: Assessment) =>
+        assessment.id === managingAssessment.id ? updatedAssessment : assessment
+      );
+      localStorage.setItem('userAssessments', JSON.stringify(updatedStored));
+    } catch (error) {
+      console.error('Error updating stored assessment:', error);
+    }
+
+    // Reset form and close modal
+    setTeamWorkshopForm({
+      name: '',
+      description: '',
+      maxParticipants: 50,
+      allowAnonymous: false,
+      showLiveResults: true
+    });
+    setSelectedMembers([]);
+    setMemberRoles({});
+    setNewInviteEmails('');
+    setNewInviteRole('participant');
+    setShowManageModal(false);
+    setManagingAssessment(null);
+    
+    // Dispatch event to trigger re-render
+    window.dispatchEvent(new CustomEvent('assessmentUpdated'));
+  };
+
   const handleDeleteAssessment = (assessmentId: string) => {
     if (!confirm('Are you sure you want to delete this assessment? This action cannot be undone.')) {
       return;
@@ -592,7 +692,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                       {assessment.status === 'active' && (
                         <Button variant="outline" size="sm">
                           <Users className="w-4 h-4 mr-1" />
-                          Manage
+                          <span onClick={() => handleManageAssessment(assessment)}>Manage</span>
                         </Button>
                       )}
                       {assessment.status === 'completed' && (
@@ -748,6 +848,283 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                 disabled={!editForm.name.trim()}
               >
                 Save Changes
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manage Assessment Modal */}
+      {showManageModal && managingAssessment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">Manage Assessment: {managingAssessment.name}</h3>
+              <button
+                onClick={() => {
+                  setShowManageModal(false);
+                  setManagingAssessment(null);
+                }}
+                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              {/* Current Assessment Status */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-blue-900">Assessment Status</h4>
+                    <p className="text-sm text-blue-700">
+                      {managingAssessment.stats.totalCompleted} of {managingAssessment.stats.totalInvited} participants completed
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {managingAssessment.stats.totalInvited > 0 
+                        ? Math.round((managingAssessment.stats.totalCompleted / managingAssessment.stats.totalInvited) * 100)
+                        : 0}%
+                    </div>
+                    <div className="text-sm text-blue-700">Complete</div>
+                  </div>
+                </div>
+                <div className="mt-3 w-full bg-blue-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ 
+                      width: `${managingAssessment.stats.totalInvited > 0 
+                        ? (managingAssessment.stats.totalCompleted / managingAssessment.stats.totalInvited) * 100
+                        : 0}%` 
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Assessment Details */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Assessment Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={teamWorkshopForm.name}
+                    onChange={(e) => setTeamWorkshopForm(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter assessment name"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={teamWorkshopForm.description}
+                    onChange={(e) => setTeamWorkshopForm(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    rows={3}
+                    placeholder="Describe your assessment (optional)"
+                  />
+                </div>
+              </div>
+
+              {/* Team Member Selection */}
+              {activeTeamMembers.length > 0 && (
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-medium text-gray-900">Add Team Members</h4>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm text-gray-500">
+                        {selectedMembers.length} of {activeTeamMembers.length} selected
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleSelectAllMembers}
+                        disabled={selectedMembers.length === activeTeamMembers.length}
+                      >
+                        Select All
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleDeselectAllMembers}
+                        disabled={selectedMembers.length === 0}
+                      >
+                        Deselect All
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {activeTeamMembers.map((member) => {
+                      const isSelected = selectedMembers.includes(member.id);
+                      return (
+                        <div key={member.id} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:bg-gray-50">
+                          <div className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleMemberToggle(member.id)}
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            />
+                            <div className="ml-3 flex items-center">
+                              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                                <span className="text-sm font-medium text-blue-600">
+                                  {member.name.charAt(0)}
+                                </span>
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">{member.name}</div>
+                                <div className="text-xs text-gray-500">{member.email}</div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {isSelected && (
+                            <select
+                              value={memberRoles[member.id] || member.role}
+                              onChange={(e) => handleMemberRoleChange(member.id, e.target.value as 'user_admin' | 'participant')}
+                              className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            >
+                              <option value="participant">Participant</option>
+                              <option value="user_admin">Admin</option>
+                            </select>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Invite New Members */}
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h4 className="font-medium text-gray-900 mb-4">Invite Additional Members</h4>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Email Addresses
+                    </label>
+                    <textarea
+                      value={newInviteEmails}
+                      onChange={(e) => setNewInviteEmails(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      rows={2}
+                      placeholder="Enter email addresses separated by commas"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Separate multiple emails with commas
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Role for New Members
+                    </label>
+                    <select
+                      value={newInviteRole}
+                      onChange={(e) => setNewInviteRole(e.target.value as 'user_admin' | 'participant')}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="participant">Participant</option>
+                      <option value="user_admin">Admin</option>
+                    </select>
+                  </div>
+
+                  {/* Preview new invites */}
+                  {parseNewInviteEmails().length > 0 && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <h5 className="text-sm font-medium text-blue-900 mb-2">New Invitations Preview:</h5>
+                      <div className="space-y-1">
+                        {parseNewInviteEmails().map((email, index) => (
+                          <div key={index} className="flex items-center text-sm text-blue-800">
+                            <Mail className="w-4 h-4 mr-2" />
+                            <span>{email}</span>
+                            <span className="ml-2 text-xs bg-blue-200 px-2 py-0.5 rounded">
+                              {newInviteRole === 'user_admin' ? 'Admin' : 'Participant'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Settings */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Allow Anonymous Participation</label>
+                    <p className="text-xs text-gray-500">Allow participants to join without creating an account</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={teamWorkshopForm.allowAnonymous}
+                      onChange={(e) => setTeamWorkshopForm(prev => ({ ...prev, allowAnonymous: e.target.checked }))}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Show Live Results</label>
+                    <p className="text-xs text-gray-500">Display results in real-time during the session</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={teamWorkshopForm.showLiveResults}
+                      onChange={(e) => setTeamWorkshopForm(prev => ({ ...prev, showLiveResults: e.target.checked }))}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Assessment Summary */}
+              {(totalParticipants > 0 || managingAssessment.stats.totalInvited > 0) && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-center">
+                    <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+                    <div>
+                      <h5 className="font-medium text-green-900">Assessment Summary</h5>
+                      <p className="text-sm text-green-700">
+                        Current participants: {managingAssessment.stats.totalInvited}
+                        {totalParticipants > 0 && (
+                          <span> • Adding: {totalParticipants} new participants</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowManageModal(false);
+                  setManagingAssessment(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleUpdateAssessment}
+                disabled={!teamWorkshopForm.name.trim()}
+              >
+                Update Assessment
               </Button>
             </div>
           </div>
