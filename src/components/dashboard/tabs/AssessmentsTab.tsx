@@ -443,21 +443,6 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     try {
       const storedInvites = localStorage.getItem(`assessmentInvites_${assessmentId}`);
       if (storedInvites) {
-        const parsedInvites = JSON.parse(storedInvites);
-        setPendingAssessmentInvites(parsedInvites.map((invite: any) => ({
-          ...invite,
-          invitedAt: new Date(invite.invitedAt),
-          expiresAt: new Date(invite.expiresAt)
-        })));
-      } else {
-        setPendingAssessmentInvites([]);
-      }
-    } catch (error) {
-      console.error('Error loading assessment invites:', error);
-      setPendingAssessmentInvites([]);
-    }
-  };
-
   const handleRemoveParticipant = (participantId: string) => {
     if (confirm('Are you sure you want to remove this participant from the assessment?')) {
       setAssessmentParticipants(prev => prev.filter(p => p.id !== participantId));
