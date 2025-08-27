@@ -309,14 +309,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       // If both fail, fall back to mock data
-      await loadDemoUserData(username);
+      await loadDemoUserByUsername(username);
     } catch (error) {
       console.warn('Failed to create Supabase session, using mock data:', error);
-      await loadDemoUserData(username);
+      await loadDemoUserByUsername(username);
     }
   };
 
-  const loadDemoUserData = async (username?: string) => {
+  const loadDemoUserByUsername = async (username?: string) => {
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     if (username && (username === 'demo' || username === 'super')) {
