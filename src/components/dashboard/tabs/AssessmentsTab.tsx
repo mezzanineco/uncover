@@ -54,6 +54,24 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
   const [editingAssessment, setEditingAssessment] = useState<Assessment | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', description: '' });
+  const [assessmentParticipants, setAssessmentParticipants] = useState<Array<{
+    id: string;
+    name: string;
+    email: string;
+    status: 'invited' | 'accepted' | 'in_progress' | 'completed';
+    invitedAt: Date;
+    acceptedAt?: Date;
+    completedAt?: Date;
+    progress: number;
+  }>>([]);
+  const [pendingAssessmentInvites, setPendingAssessmentInvites] = useState<Array<{
+    id: string;
+    email: string;
+    assessmentId: string;
+    status: 'pending' | 'expired';
+    invitedAt: Date;
+    expiresAt: Date;
+  }>>([]);
   const [teamWorkshopForm, setTeamWorkshopForm] = useState({
     name: '',
     description: '',
@@ -351,6 +369,13 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
   const handleManageAssessment = (assessment: Assessment) => {
     setManagingAssessment(assessment);
     
+    
+    // Load assessment participants and their progress
+    loadAssessmentParticipants(assessment.id);
+    
+    // Load pending invites for this assessment
+    loadPendingAssessmentInvites(assessment.id);
+    
     // Pre-populate form with current assessment data
     setTeamWorkshopForm({
       name: assessment.name,
@@ -368,6 +393,119 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     setNewInviteRole('participant');
     
     setShowManageModal(true);
+  };
+
+  const loadAssessmentParticipants = (assessmentId: string) => {
+    // Mock data - in production this would come from API
+    const mockParticipants = [
+      {
+        id: 'p1',
+        name: 'Sarah Johnson',
+        email: 'sarah@company.com',
+        status: 'completed' as const,
+        invitedAt: new Date('2024-01-20T10:00:00Z'),
+        acceptedAt: new Date('2024-01-20T14:30:00Z'),
+        completedAt: new Date('2024-01-21T16:45:00Z'),
+        progress: 100
+      },
+      {
+        id: 'p2',
+        name: 'Mike Chen',
+        email: 'mike@company.com',
+        status: 'in_progress' as const,
+        invitedAt: new Date('2024-01-20T10:00:00Z'),
+        acceptedAt: new Date('2024-01-21T09:15:00Z'),
+        progress: 65
+      },
+      {
+        id: 'p3',
+        name: 'Emma Davis',
+        email: 'emma@company.com',
+        status: 'accepted' as const,
+        invitedAt: new Date('2024-01-20T10:00:00Z'),
+        acceptedAt: new Date('2024-01-22T11:20:00Z'),
+        progress: 0
+      },
+      {
+        id: 'p4',
+        name: 'John Smith',
+        email: 'john@company.com',
+        status: 'invited' as const,
+        invitedAt: new Date('2024-01-20T10:00:00Z'),
+        progress: 0
+      }
+    ];
+    setAssessmentParticipants(mockParticipants);
+  };
+
+  const loadPendingAssessmentInvites = (assessmentId: string) => {
+    // Check localStorage for pending assessment invites
+    try {
+      const storedInvites = localStorage.getItem(`assessmentInvites_${assessmentId}`);
+      if (storedInvites) {
+        const parsedInvites = JSON.parse(storedInvites);
+        setPendingAssessmentInvites(parsedInvites.map((invite: any) => ({
+          ...invite,
+          invitedAt: new Date(invite.invitedAt),
+          expiresAt: new Date(invite.expiresAt)
+        })));
+      } else {
+        setPendingAssessmentInvites([]);
+      }
+    } catch (error) {
+      console.error('Error loading assessment invites:', error);
+      setPendingAssessmentInvites([]);
+    }
+  };
+
+  const handleRemoveParticipant = (participantId: string) => {
+    if (confirm('Are you sure you want to remove this participant from the assessment?')) {
+      setAssessmentParticipants(prev => prev.filter(p => p.id !== participantId));
+    }
+  };
+
+  const handleResendInvite = (participantId: string) => {
+    const participant = assessmentParticipants.find(p => p.id === participantId);
+    if (participant) {
+      // Update the invited date
+      setAssessmentParticipants(prev => prev.map(p => 
+        p.id === participantId 
+          ? { ...p, invitedAt: new Date() }
+          : p
+      ));
+      
+      // Show success message (in production, this would trigger an actual email)
+      alert(`Invitation resent to ${participant.email}`);
+    }
+  };
+
+  const handleResendPendingInvite = (inviteId: string) => {
+    setPendingAssessmentInvites(prev => prev.map(invite => 
+      invite.id === inviteId 
+        ? { 
+            ...invite, 
+            invitedAt: new Date(), 
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days from now
+          }
+        : invite
+    ));
+    
+    const invite = pendingAssessmentInvites.find(i => i.id === inviteId);
+    if (invite) {
+      alert(`Invitation resent to ${invite.email}`);
+    }
+  };
+
+  const handleRemovePendingInvite = (inviteId: string) => {
+    if (confirm('Are you sure you want to cancel this invitation?')) {
+      setPendingAssessmentInvites(prev => prev.filter(i => i.id !== inviteId));
+      
+      // Update localStorage
+      if (managingAssessment) {
+        const remaining = pendingAssessmentInvites.filter(i => i.id !== inviteId);
+        localStorage.setItem(`assessmentInvites_${managingAssessment.id}`, JSON.stringify(remaining));
+      }
+    }
   };
 
   const handleUpdateAssessment = () => {
@@ -437,6 +575,30 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     });
     setSelectedMembers([]);
     setMemberRoles({});
+      
+      // Save new invites to localStorage for this assessment
+      if (newInviteEmails.trim()) {
+        const emails = newInviteEmails
+          .split(',')
+          .map(email => email.trim())
+          .filter(email => email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+        
+        const newInvites = emails.map(email => ({
+          id: `invite-${Date.now()}-${Math.random()}`,
+          email,
+          assessmentId: managingAssessment.id,
+          status: 'pending' as const,
+          invitedAt: new Date(),
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+        }));
+        
+        const existingInvites = pendingAssessmentInvites;
+        const allInvites = [...existingInvites, ...newInvites];
+        setPendingAssessmentInvites(allInvites);
+        
+        // Save to localStorage
+        localStorage.setItem(`assessmentInvites_${managingAssessment.id}`, JSON.stringify(allInvites));
+      }
     setNewInviteEmails('');
     setNewInviteRole('participant');
     setShowManageModal(false);
@@ -581,6 +743,44 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
         return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'in_progress':
+        return 'bg-blue-100 text-blue-800';
+      case 'accepted':
+        return 'bg-amber-100 text-amber-800';
+      case 'invited':
+        return 'bg-gray-100 text-gray-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'expired':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'Completed';
+      case 'in_progress':
+        return 'In Progress';
+      case 'accepted':
+        return 'Accepted';
+      case 'invited':
+        return 'Invited';
+      case 'pending':
+        return 'Pending';
+      case 'expired':
+        return 'Expired';
+      default:
+        return status;
     }
   };
 
@@ -857,7 +1057,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
       {/* Manage Assessment Modal */}
       {showManageModal && managingAssessment && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl max-w-5xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-gray-900">Manage Assessment: {managingAssessment.name}</h3>
               <button
@@ -871,7 +1071,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
               </button>
             </div>
             
-            <div className="space-y-6">
+            <div className="space-y-8">
               {/* Current Assessment Status */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-center justify-between">
@@ -901,6 +1101,136 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                   />
                 </div>
               </div>
+
+              {/* Current Participants */}
+              <div>
+                <h4 className="text-lg font-semibold text-gray-900 mb-4">Current Participants</h4>
+                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Participant
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Progress
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Invited
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {assessmentParticipants.map((participant) => (
+                          <tr key={participant.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                                  <span className="text-sm font-medium text-blue-600">
+                                    {participant.name.charAt(0)}
+                                  </span>
+                                </div>
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900">{participant.name}</div>
+                                  <div className="text-sm text-gray-500">{participant.email}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(participant.status)}`}>
+                                {getStatusLabel(participant.status)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="w-full bg-gray-200 rounded-full h-2 mr-2" style={{ width: '80px' }}>
+                                  <div 
+                                    className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                                    style={{ width: `${participant.progress}%` }}
+                                  />
+                                </div>
+                                <span className="text-sm text-gray-600 min-w-[40px]">{participant.progress}%</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {new Date(participant.invitedAt).toLocaleDateString()}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                              <div className="flex items-center space-x-2">
+                                {participant.status === 'invited' && (
+                                  <button
+                                    onClick={() => handleResendInvite(participant.id)}
+                                    className="text-blue-600 hover:text-blue-900 text-xs"
+                                  >
+                                    Resend
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleRemoveParticipant(participant.id)}
+                                  className="text-red-600 hover:text-red-900 text-xs"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pending Assessment Invites */}
+              {pendingAssessmentInvites.length > 0 && (
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Pending Assessment Invites</h4>
+                  <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="divide-y divide-gray-200">
+                      {pendingAssessmentInvites.map((invite) => (
+                        <div key={invite.id} className="p-4 flex items-center justify-between">
+                          <div className="flex items-center">
+                            <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center mr-3">
+                              <Mail className="w-4 h-4 text-yellow-600" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">{invite.email}</div>
+                              <div className="text-sm text-gray-500">
+                                Invited {new Date(invite.invitedAt).toLocaleDateString()} • 
+                                Expires {new Date(invite.expiresAt).toLocaleDateString()}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(invite.status)}`}>
+                              {getStatusLabel(invite.status)}
+                            </span>
+                            <button
+                              onClick={() => handleResendPendingInvite(invite.id)}
+                              className="text-blue-600 hover:text-blue-900 text-xs px-2 py-1"
+                            >
+                              Resend
+                            </button>
+                            <button
+                              onClick={() => handleRemovePendingInvite(invite.id)}
+                              className="text-red-600 hover:text-red-900 text-xs px-2 py-1"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Assessment Details */}
               <div className="space-y-4">
