@@ -8,8 +8,8 @@ export interface ArchetypeScore {
 
 export interface Response {
   questionId: string;
-  answer: string | number | string[];
-  scores: Record<string, number>;
+  value: string | number | string[];
+  timestamp: Date;
 }
 
 export interface ParsedQuestion {
@@ -44,15 +44,21 @@ interface ArchetypeResult {
   score: number;
   percentage: number;
   description: string;
+  traits: string[];
   color: string;
 }
 
-interface AssessmentResults {
+export interface AssessmentResult {
   primaryArchetype: ArchetypeResult;
   secondaryArchetype: ArchetypeResult;
-  allArchetypes: ArchetypeResult[];
-  totalQuestions: number;
-  completionTime?: number;
+  allScores: ArchetypeResult[];
+  confidence: number;
+  completedAt: Date;
+  sectionScores: {
+    broad: Record<string, number>;
+    clarifier: Record<string, number>;
+    validator: Record<string, number>;
+  };
 }
 
 // Archetype definitions

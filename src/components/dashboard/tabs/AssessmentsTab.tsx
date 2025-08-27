@@ -14,11 +14,15 @@ import {
   User,
   Mail,
   UserCheck,
-  X
+  X,
+  BarChart3
 } from 'lucide-react';
 import { Button } from '../../common/Button';
 import type { Organisation, OrganisationMember, Assessment } from '../../../types/auth';
 import { hasPermission } from '../../../types/auth';
+import { ResultsDashboard } from '../../results/ResultsDashboard';
+import { ARCHETYPE_DATA } from '../../../data/archetypes';
+import type { AssessmentResult, ArchetypeScore } from '../../../types';
 
 interface AssessmentsTabProps {
   organisation: Organisation;
@@ -40,6 +44,8 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showTeamWorkshopModal, setShowTeamWorkshopModal] = useState(false);
+  const [showResultsModal, setShowResultsModal] = useState(false);
+  const [selectedAssessmentResults, setSelectedAssessmentResults] = useState<AssessmentResult | null>(null);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [memberRoles, setMemberRoles] = useState<Record<string, 'user_admin' | 'participant'>>({});
@@ -335,6 +341,9 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     setShowEditModal(false);
     setEditingAssessment(null);
     setEditForm({ name: '', description: '' });
+    
+    // Dispatch event to trigger re-render
+    window.dispatchEvent(new CustomEvent('assessmentUpdated'));
   };
 
   const handleDeleteAssessment = (assessmentId: string) => {
@@ -355,6 +364,60 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     } catch (error) {
       console.error('Error deleting stored assessment:', error);
     }
+  };
+
+  const handleViewResults = (assessment: Assessment) => {
+    // Generate mock results for completed assessments
+    const mockResults: AssessmentResult = {
+      primaryArchetype: {
+        name: 'Explorer',
+        score: 85,
+        percentage: 28.5,
+        description: ARCHETYPE_DATA.Explorer.description,
+        traits: ARCHETYPE_DATA.Explorer.traits,
+        color: ARCHETYPE_DATA.Explorer.color
+      },
+      secondaryArchetype: {
+        name: 'Creator',
+        score: 72,
+        percentage: 24.1,
+        description: ARCHETYPE_DATA.Creator.description,
+        traits: ARCHETYPE_DATA.Creator.traits,
+        color: ARCHETYPE_DATA.Creator.color
+      },
+      allScores: Object.keys(ARCHETYPE_DATA).map((archetype, index) => ({
+        name: archetype,
+        score: Math.max(20, 100 - (index * 8) + Math.random() * 10),
+        percentage: Math.max(5, 30 - (index * 2.5) + Math.random() * 5),
+        description: ARCHETYPE_DATA[archetype as keyof typeof ARCHETYPE_DATA].description,
+        traits: ARCHETYPE_DATA[archetype as keyof typeof ARCHETYPE_DATA].traits,
+        color: ARCHETYPE_DATA[archetype as keyof typeof ARCHETYPE_DATA].color
+      })).sort((a, b) => b.percentage - a.percentage),
+      confidence: 87,
+      completedAt: new Date(),
+      sectionScores: {
+        broad: { Explorer: 30, Creator: 25, Hero: 20 },
+        clarifier: { Explorer: 28, Creator: 24, Hero: 18 },
+        validator: { Explorer: 27, Creator: 23, Hero: 19 }
+      }
+    };
+    
+    setSelectedAssessmentResults(mockResults);
+    setShowResultsModal(true);
+  };
+
+  const getProgressPercentage = (assessment: Assessment) => {
+    if (assessment.status === 'completed') return 100;
+    if (assessment.status === 'draft') return 0;
+    if (assessment.stats.totalInvited === 0) return 0;
+    return Math.round((assessment.stats.totalCompleted / assessment.stats.totalInvited) * 100);
+  };
+
+  const getProgressColor = (percentage: number) => {
+    if (percentage >= 80) return 'bg-green-500';
+    if (percentage >= 50) return 'bg-blue-500';
+    if (percentage >= 25) return 'bg-amber-500';
+    return 'bg-gray-300';
   };
 
   const handleSelectAllMembers = () => {
@@ -492,6 +555,16 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(assessment.status)}`}>
                       {assessment.status.replace('_', ' ')}
                     </span>
+                    {/* Progress Bar */}
+                    <div className="mt-2 w-full bg-gray-200 rounded-full h-1.5">
+                      <div 
+                        className={`h-1.5 rounded-full transition-all duration-300 ${getProgressColor(getProgressPercentage(assessment))}`}
+                        style={{ width: `${getProgressPercentage(assessment)}%` }}
+                      />
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {getProgressPercentage(assessment)}% complete
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
@@ -524,7 +597,8 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
                       )}
                       {assessment.status === 'completed' && (
                         <Button variant="outline" size="sm">
-                          View Results
+                          <BarChart3 className="w-4 h-4 mr-1" />
+                          <span onClick={() => handleViewResults(assessment)}>View Results</span>
                         </Button>
                       )}
                       {assessment.status === 'draft' && (
@@ -914,6 +988,38 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
               >
                 Create Workshop
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Results Modal */}
+      {showResultsModal && selectedAssessmentResults && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-gray-900">Assessment Results</h3>
+                <button
+                  onClick={() => {
+                    setShowResultsModal(false);
+                    setSelectedAssessmentResults(null);
+                  }}
+                  className="p-2 text-gray-400 hover:text-gray-600 rounded-lg"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="bg-gray-50 rounded-lg p-4">
+                <ResultsDashboard
+                  result={selectedAssessmentResults}
+                  onRestart={() => {
+                    setShowResultsModal(false);
+                    setSelectedAssessmentResults(null);
+                  }}
+                />
+              </div>
             </div>
           </div>
         </div>
