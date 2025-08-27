@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../auth/AuthProvider';
+import { responseService, resultService } from '../../services/database';
 import type { ParsedQuestion, Response, AssessmentResult } from '../../types';
 import { QuestionCard } from './QuestionCard';
 import { ProgressBar } from '../common/ProgressBar';
@@ -41,6 +43,7 @@ export function AssessmentFlow({
   currentAssessmentId
 }: AssessmentFlowProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(initialQuestionIndex);
+  const { user } = useAuth();
   const [responses, setResponses] = useState<Response[]>(initialResponses);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentSection, setCurrentSection] = useState<'Broad' | 'Clarifier' | 'Validator'>('Broad');
@@ -72,6 +75,20 @@ export function AssessmentFlow({
   const handleResponse = (response: Response) => {
     setResponses(prev => {
       const existing = prev.findIndex(r => r.questionId === response.questionId);
+      
+      // Save response to database if user is authenticated and assessment ID exists
+      if (user && currentAssessmentId) {
+        responseService.saveResponse({
+          assessmentId: currentAssessmentId,
+          userId: user.id,
+          questionId: response.questionId,
+          responseValue: response.value,
+          responseTimestamp: response.timestamp.toISOString()
+        }).catch(error => {
+          console.error('Error saving response to database:', error);
+        });
+      }
+      
       let updatedResponses;
       if (existing >= 0) {
         updatedResponses = [...prev];
@@ -150,6 +167,22 @@ export function AssessmentFlow({
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     const result = calculateArchetypeScores(responses, allSectionQuestions);
+    
+    // Save result to database if user is authenticated and assessment ID exists
+    if (user && currentAssessmentId) {
+      resultService.saveResult({
+        assessmentId: currentAssessmentId,
+        userId: user.id,
+        primaryArchetype: result.primaryArchetype.name,
+        secondaryArchetype: result.secondaryArchetype.name,
+        allScores: result.allScores,
+        confidence: result.confidence,
+        completedAt: result.completedAt.toISOString(),
+        sectionScores: result.sectionScores
+      }).catch(error => {
+        console.error('Error saving result to database:', error);
+      });
+    }
     
     onComplete(result);
   };

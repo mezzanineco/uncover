@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabase';
+import { userService, organisationService, memberService } from '../../services/database';
 import type { AuthState, User, Organisation, OrganisationMember } from '../../types/auth';
 
 interface AuthContextType extends AuthState {
@@ -38,57 +40,203 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const checkExistingSession = async () => {
     try {
-      // Simulate checking for existing session
-      const token = localStorage.getItem('auth_token');
-      if (token) {
-        // Mock user data - in production this would come from API
-        const mockUser: User = {
-          id: 'user-1',
-          email: 'user@example.com',
-          name: 'John Doe',
-          username: 'johndoe',
-          username: 'johndoe',
-          emailVerified: true,
-          createdAt: new Date('2024-01-01'),
-          lastLoginAt: new Date(),
-          status: 'active'
-        };
+      // Check for existing Supabase session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        await loadUserData(session.user.id, session.user.email!);
+      } else {
+        // Fallback to localStorage for demo purposes
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+          await loadDemoUserData();
+        } else {
+          setAuthState(prev => ({ ...prev, isLoading: false }));
+        }
+      }
+    } catch (error) {
+      console.error('Session check failed:', error);
+      setAuthState(prev => ({ ...prev, isLoading: false }));
+    }
+  };
 
-        const mockOrganisation: Organisation = {
-          id: 'org-1',
-          name: 'Acme Corp',
-          slug: 'acme-corp',
-          createdAt: new Date('2024-01-01'),
-          createdBy: 'user-1',
-          settings: {
-            allowGuestParticipants: true,
-            requireConsent: true,
-            dataRetentionDays: 365
-          }
-        };
+  const loadUserData = async (userId: string, email: string) => {
+    try {
+      // Get user data
+      let user = await userService.getUserByEmail(email);
+      
+      if (!user) {
+        // Create user if doesn't exist
+        user = await userService.createUser({
+          email,
+          name: email.split('@')[0]
+        });
+      }
 
-        const mockMember: OrganisationMember = {
-          id: 'member-1',
-          userId: 'user-1',
-          organisationId: 'org-1',
-          role: 'user_admin',
-          status: 'active',
-          joinedAt: new Date('2024-01-01'),
-          lastActiveAt: new Date()
-        };
+      // Get user's organisation memberships
+      const { data: memberships } = await supabase
+        .from('organisation_members')
+        .select(`
+          *,
+          organisations (*)
+        `)
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .limit(1);
+
+      if (memberships && memberships.length > 0) {
+        const membership = memberships[0];
+        const organisation = membership.organisations;
 
         setAuthState({
-          user: mockUser,
-          organisation: mockOrganisation,
-          member: mockMember,
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            username: user.username,
+            avatar: user.avatar,
+            emailVerified: user.email_verified,
+            createdAt: new Date(user.created_at),
+            lastLoginAt: user.last_login_at ? new Date(user.last_login_at) : undefined,
+            status: user.status as 'active' | 'suspended' | 'pending'
+          },
+          organisation: {
+            id: organisation.id,
+            name: organisation.name,
+            slug: organisation.slug,
+            logo: organisation.logo,
+            industry: organisation.industry,
+            size: organisation.size,
+            createdAt: new Date(organisation.created_at),
+            createdBy: organisation.created_by,
+            settings: organisation.settings
+          },
+          member: {
+            id: membership.id,
+            userId: membership.user_id,
+            organisationId: membership.organisation_id,
+            role: membership.role,
+            status: membership.status,
+            invitedBy: membership.invited_by,
+            invitedAt: membership.invited_at ? new Date(membership.invited_at) : undefined,
+            joinedAt: membership.joined_at ? new Date(membership.joined_at) : undefined,
+            lastActiveAt: membership.last_active_at ? new Date(membership.last_active_at) : undefined
+          },
           isLoading: false,
           isAuthenticated: true
         });
       } else {
-        setAuthState(prev => ({ ...prev, isLoading: false }));
+        // User has no organisation, create a default one
+        await createDefaultOrganisation(user);
       }
     } catch (error) {
-      console.error('Session check failed:', error);
+      console.error('Error loading user data:', error);
+      setAuthState(prev => ({ ...prev, isLoading: false }));
+    }
+  };
+
+  const loadDemoUserData = async () => {
+    // Keep existing demo functionality for development
+    const mockUser: User = {
+      id: 'user-demo',
+      email: 'demo@example.com',
+      name: 'Demo User',
+      username: 'demo',
+      emailVerified: true,
+      createdAt: new Date('2024-01-01'),
+      lastLoginAt: new Date(),
+      status: 'active'
+    };
+
+    const mockOrganisation: Organisation = {
+      id: 'org-demo',
+      name: 'Demo Corp',
+      slug: 'demo-corp',
+      createdAt: new Date('2024-01-01'),
+      createdBy: 'user-demo',
+      settings: {
+        allowGuestParticipants: true,
+        requireConsent: true,
+        dataRetentionDays: 365
+      }
+    };
+
+    const mockMember: OrganisationMember = {
+      id: 'member-demo',
+      userId: 'user-demo',
+      organisationId: 'org-demo',
+      role: 'user_admin',
+      status: 'active',
+      joinedAt: new Date('2024-01-01'),
+      lastActiveAt: new Date()
+    };
+
+    setAuthState({
+      user: mockUser,
+      organisation: mockOrganisation,
+      member: mockMember,
+      isLoading: false,
+      isAuthenticated: true
+    });
+  };
+
+  const createDefaultOrganisation = async (user: any) => {
+    try {
+      // Create default organisation
+      const organisation = await organisationService.createOrganisation({
+        name: `${user.name || user.email.split('@')[0]}'s Organisation`,
+        slug: `${user.email.split('@')[0]}-org-${Date.now()}`,
+        createdBy: user.id,
+        industry: 'other',
+        size: 'small'
+      });
+
+      // Add user as admin
+      const membership = await memberService.addMember({
+        userId: user.id,
+        organisationId: organisation.id,
+        role: 'user_admin'
+      });
+
+      setAuthState({
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          username: user.username,
+          avatar: user.avatar,
+          emailVerified: user.email_verified,
+          createdAt: new Date(user.created_at),
+          lastLoginAt: user.last_login_at ? new Date(user.last_login_at) : undefined,
+          status: user.status as 'active' | 'suspended' | 'pending'
+        },
+        organisation: {
+          id: organisation.id,
+          name: organisation.name,
+          slug: organisation.slug,
+          logo: organisation.logo,
+          industry: organisation.industry,
+          size: organisation.size,
+          createdAt: new Date(organisation.created_at),
+          createdBy: organisation.created_by,
+          settings: organisation.settings
+        },
+        member: {
+          id: membership.id,
+          userId: membership.user_id,
+          organisationId: membership.organisation_id,
+          role: membership.role,
+          status: membership.status,
+          invitedBy: membership.invited_by,
+          invitedAt: membership.invited_at ? new Date(membership.invited_at) : undefined,
+          joinedAt: membership.joined_at ? new Date(membership.joined_at) : undefined,
+          lastActiveAt: membership.last_active_at ? new Date(membership.last_active_at) : undefined
+        },
+        isLoading: false,
+        isAuthenticated: true
+      });
+    } catch (error) {
+      console.error('Error creating default organisation:', error);
       setAuthState(prev => ({ ...prev, isLoading: false }));
     }
   };
@@ -106,7 +254,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const loginWithPassword = async (username: string, password: string) => {
     try {
-      // Simulate API call for username/password login
+      // Try Supabase auth first
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: username.includes('@') ? username : `${username}@example.com`,
+        password
+      });
+
+      if (data.user && !error) {
+        await loadUserData(data.user.id, data.user.email!);
+        return;
+      }
+
+      // Fallback to demo login for development
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Mock validation - in production, this would validate against your backend
@@ -178,7 +337,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const signupWithPassword = async (username: string, email: string, password: string) => {
     try {
-      // Simulate API call for username/password signup
+      // Try Supabase auth first
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { username, name: username }
+        }
+      });
+
+      if (data.user && !error) {
+        await loadUserData(data.user.id, email);
+        return;
+      }
+
+      // Fallback to demo signup for development
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Mock user creation - in production, this would create user in your backend
@@ -286,7 +459,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const logout = () => {
+    // Sign out from Supabase
+    supabase.auth.signOut();
+    
+    // Clear local storage
     localStorage.removeItem('auth_token');
+    
     setAuthState({
       user: null,
       organisation: null,
