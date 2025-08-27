@@ -507,8 +507,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const logout = () => {
-    // Sign out from Supabase
-    supabase.auth.signOut();
+    // Sign out from Supabase if configured
+    if (isSupabaseConfigured) {
+      supabase.auth.signOut();
+    }
     
     // Clear local storage
     localStorage.removeItem('auth_token');

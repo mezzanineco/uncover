@@ -226,6 +226,14 @@ export const assessmentService = {
 
   async getAssessmentsByOrganisation(organisationId: string) {
     try {
+      // If Supabase is not configured, return mock data
+      if (!isSupabaseConfigured) {
+        const storedAssessments = JSON.parse(localStorage.getItem('assessments') || '[]');
+        return storedAssessments.filter((assessment: any) => 
+          assessment.organisation_id === organisationId
+        );
+      }
+      
       const { data, error } = await supabase
         .from('assessments')
         .select('*')
