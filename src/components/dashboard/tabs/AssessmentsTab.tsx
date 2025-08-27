@@ -186,6 +186,13 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
 
   // Load any saved assessment progress on component mount
   useEffect(() => {
+  const [teamWorkshopForm, setTeamWorkshopForm] = useState({
+    name: '',
+    description: '',
+    date: '',
+    time: '',
+    participants: []
+  });
     console.log('Checking for saved assessment progress...');
     try {
       const savedProgress = localStorage.getItem('assessmentProgress');
