@@ -186,21 +186,21 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
 
   // Load any saved assessment progress on component mount
   useEffect(() => {
-  const [teamWorkshopForm, setTeamWorkshopForm] = useState({
-    name: '',
-    description: '',
-    selectedMembers: [] as string[],
-    memberRoles: {} as Record<string, 'user_admin' | 'participant'>,
-    newInvites: '',
-    newInviteRole: 'participant' as 'user_admin' | 'participant'
-  });
-  const [teamWorkshopForm, setTeamWorkshopForm] = useState({
-    name: '',
-    description: '',
-    date: '',
-    time: '',
-    participants: []
-  });
+    const [teamWorkshopForm, setTeamWorkshopForm] = useState({
+      name: '',
+      description: '',
+      selectedMembers: [] as string[],
+      memberRoles: {} as Record<string, 'user_admin' | 'participant'>,
+      newInvites: '',
+      newInviteRole: 'participant' as 'user_admin' | 'participant'
+    });
+    const [teamWorkshopForm2, setTeamWorkshopForm2] = useState({
+      name: '',
+      description: '',
+      date: '',
+      time: '',
+      participants: []
+    });
     console.log('Checking for saved assessment progress...');
     try {
       const savedProgress = localStorage.getItem('assessmentProgress');
@@ -221,8 +221,11 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     } catch (error) {
       console.error('Error loading saved assessment progress:', error);
     }
-  }, []);
 
+    const handleAssessmentSaved = (event: CustomEvent) => {
+      const { assessment } = event.detail;
+      console.log('Assessment saved event received:', assessment);
+      setAssessments(prevAssessments => {
         const existingIndex = prevAssessments.findIndex(a => a.id === assessment.id);
         let updatedAssessments: Assessment[];
         if (existingIndex >= 0) {
@@ -541,7 +544,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     const totalParticipants = selectedMembers.length + newEmails.length;
     const newAssessment = {
       id: `assess-${Date.now()}`,
-      name: teamWorkshopForm.name || 'Team Workshop Assessment',
+      name: assessmentForm.name || 'Team Workshop Assessment',
       description: `Team workshop with ${totalParticipants} participants`,
       projectId: 'team-project',
       organisationId: organisation.id,
@@ -563,7 +566,6 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     };
 
     setAssessments(prev => [newAssessment, ...prev]);
-    setTeamWorkshopForm({ name: '', description: '', selectedMembers: [], newInvites: [] });
     // Reset form
     setSelectedMembers([]);
     setNewInviteEmails('');
