@@ -81,7 +81,7 @@ export interface Assessment {
   };
 }
 
-export interface Participant {
+interface Participant {
   id: string;
   assessmentId: string;
   organisationId: string;
@@ -111,7 +111,7 @@ export interface Invite {
   token: string;
 }
 
-export interface MagicLink {
+interface MagicLink {
   id: string;
   email: string;
   token: string;
@@ -196,7 +196,7 @@ export function hasPermission(
   return PERMISSIONS[permission].includes(role);
 }
 
-export function canAccessRoute(
+function canAccessRoute(
   role: OrganisationMember['role'], 
   route: string
 ): boolean {

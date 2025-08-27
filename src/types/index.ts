@@ -26,20 +26,20 @@ export interface ParsedQuestion {
   usedInSessions?: boolean;
 }
 
-export interface AssessmentState {
+interface AssessmentState {
   currentQuestionIndex: number;
   responses: Response[];
   scores: Record<string, number>;
   isComplete: boolean;
 }
 
-export interface QuestionProps {
+interface QuestionProps {
   question: ParsedQuestion;
   onAnswer: (answer: string | number | string[]) => void;
   selectedAnswer?: string | number | string[];
 }
 
-export interface ArchetypeResult {
+interface ArchetypeResult {
   name: string;
   score: number;
   percentage: number;
@@ -47,7 +47,7 @@ export interface ArchetypeResult {
   color: string;
 }
 
-export interface AssessmentResults {
+interface AssessmentResults {
   primaryArchetype: ArchetypeResult;
   secondaryArchetype: ArchetypeResult;
   allArchetypes: ArchetypeResult[];

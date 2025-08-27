@@ -10,7 +10,7 @@ export interface User {
   lastLoginAt?: Date;
 }
 
-export interface Client {
+interface Client {
   id: string;
   name: string;
   slug: string;
@@ -36,7 +36,7 @@ export interface QuestionBank {
   questionCount: number;
 }
 
-export interface AssessmentTemplate {
+interface AssessmentTemplate {
   id: string;
   name: string;
   description?: string;
@@ -81,7 +81,7 @@ export interface Session {
   completedAt?: Date;
 }
 
-export interface Participant {
+interface Participant {
   id: string;
   sessionId: string;
   token: string;
@@ -120,7 +120,7 @@ export interface AdminDashboardStats {
   }>;
 }
 
-export interface Asset {
+interface Asset {
   key: string;
   url: string;
   altText?: string;
@@ -141,6 +141,6 @@ export const PERMISSIONS = {
   MANAGE_WHITE_LABELING: ['super_admin', 'facilitator'],
 } as const;
 
-export function hasPermission(userRole: User['role'], permission: keyof typeof PERMISSIONS): boolean {
+function hasPermission(userRole: User['role'], permission: keyof typeof PERMISSIONS): boolean {
   return PERMISSIONS[permission].includes(userRole);
 }
