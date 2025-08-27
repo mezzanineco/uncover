@@ -1,24 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { userService, organisationService, memberService } from '../../services/database';
-import type { AuthState, User, Organisation, OrganisationMember } from '../../types/auth';
-
-interface AuthContextType extends AuthState {
-  login: (emailOrUsername: string, password?: string) => Promise<void>;
-  signup: (emailOrUsernameOrEmail: string, emailOrPassword?: string, password?: string) => Promise<void>;
-  logout: () => void;
-  verifyMagicLink: (token: string) => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | null>(null);
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-}
+import type { User, Organisation, OrganisationMember } from '../../types/auth';
+import { AuthContext, type AuthContextType, type AuthState } from '../../contexts/AuthContext';
 
 interface AuthProviderProps {
   children: React.ReactNode;

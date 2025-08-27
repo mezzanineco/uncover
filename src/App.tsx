@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { AuthProvider, useAuth } from './components/auth/AuthProvider';
+import { AuthProvider } from './components/auth/AuthProvider';
+import { useAuth } from './contexts/AuthContext';
 import { AuthLayout } from './components/auth/AuthLayout';
 import { SignupForm } from './components/auth/SignupForm';
 import { LoginForm } from './components/auth/LoginForm';
