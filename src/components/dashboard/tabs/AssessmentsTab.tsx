@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { assessmentService, inviteService } from '../../../services/database';
 import { 
   Plus, 
   Play, 
@@ -25,6 +26,7 @@ import { ARCHETYPE_DATA } from '../../../data/archetypes';
 import type { AssessmentResult, ArchetypeScore } from '../../../types';
 
 interface AssessmentsTabProps {
+  user: any;
   organisation: Organisation;
   member: OrganisationMember;
 }
@@ -39,8 +41,9 @@ interface TeamMember {
   joinedAt: Date;
 }
 
-export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
+export function AssessmentsTab({ user, organisation, member }: AssessmentsTabProps) {
   // All hooks must be at the top level
+  const [isLoading, setIsLoading] = useState(true);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showTeamWorkshopModal, setShowTeamWorkshopModal] = useState(false);
@@ -81,6 +84,137 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
   });
   const [showManageModal, setShowManageModal] = useState(false);
   const [managingAssessment, setManagingAssessment] = useState<Assessment | null>(null);
+
+  // Load assessments on component mount
+  useEffect(() => {
+    loadAssessments();
+  }, [organisation.id]);
+
+  const loadAssessments = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Load assessments from database
+      const dbAssessments = await assessmentService.getAssessmentsByOrganisation(organisation.id);
+      
+      // Transform database assessments to match our interface
+      const transformedAssessments = dbAssessments.map((assessment: any) => ({
+        id: assessment.id,
+        name: assessment.name,
+        description: assessment.description,
+        projectId: assessment.project_id,
+        organisationId: assessment.organisation_id,
+        templateId: assessment.template_id,
+        status: assessment.status,
+        createdBy: assessment.created_by,
+        createdAt: new Date(assessment.created_at),
+        updatedAt: new Date(assessment.updated_at),
+        requireConsent: assessment.require_consent,
+        allowAnonymous: assessment.allow_anonymous,
+        stats: assessment.stats
+      }));
+
+      // Load mock assessments for demo purposes
+      const mockAssessments = [
+        {
+          id: 'assess-1',
+          name: 'Marketing Team Brand Assessment',
+          description: 'Comprehensive brand archetype assessment for the marketing team',
+          projectId: 'proj-1',
+          organisationId: organisation.id,
+          templateId: 'template-1',
+          status: 'active' as const,
+          createdBy: user?.id || 'user-1',
+          createdAt: new Date('2024-01-22T09:00:00Z'),
+          updatedAt: new Date('2024-01-22T14:30:00Z'),
+          requireConsent: true,
+          allowAnonymous: false,
+          stats: {
+            totalInvited: 8,
+            totalStarted: 6,
+            totalCompleted: 4,
+            averageCompletionTime: 15
+          }
+        },
+        {
+          id: 'assess-2',
+          name: 'Leadership Assessment',
+          description: 'Executive team archetype analysis',
+          projectId: 'proj-2',
+          organisationId: organisation.id,
+          templateId: 'template-1',
+          status: 'completed' as const,
+          createdBy: user?.id || 'user-1',
+          createdAt: new Date('2024-01-18T14:00:00Z'),
+          updatedAt: new Date('2024-01-20T16:45:00Z'),
+          requireConsent: true,
+          allowAnonymous: true,
+          stats: {
+            totalInvited: 6,
+            totalStarted: 6,
+            totalCompleted: 6,
+            averageCompletionTime: 18
+          }
+        },
+        {
+          id: 'assess-3',
+          name: 'Sales Team Evaluation',
+          description: 'Quarterly sales team assessment',
+          projectId: 'proj-3',
+          organisationId: organisation.id,
+          templateId: 'template-1',
+          status: 'draft' as const,
+          createdBy: user?.id || 'user-2',
+          createdAt: new Date('2024-01-15T11:30:00Z'),
+          updatedAt: new Date('2024-01-15T11:30:00Z'),
+          requireConsent: false,
+          allowAnonymous: true,
+          stats: {
+            totalInvited: 0,
+            totalStarted: 0,
+            totalCompleted: 0,
+            averageCompletionTime: undefined
+          }
+        }
+      ];
+
+      // Combine database and mock assessments
+      setAssessments([...transformedAssessments, ...mockAssessments]);
+    } catch (error) {
+      console.error('Error loading assessments:', error);
+      // Fallback to mock data on error
+      loadMockAssessments();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadMockAssessments = () => {
+    // Fallback mock data
+    const mockAssessments = [
+      {
+        id: 'assess-1',
+        name: 'Marketing Team Brand Assessment',
+        description: 'Comprehensive brand archetype assessment for the marketing team',
+        projectId: 'proj-1',
+        organisationId: organisation.id,
+        templateId: 'template-1',
+        status: 'active' as const,
+        createdBy: user?.id || 'user-1',
+        createdAt: new Date('2024-01-22T09:00:00Z'),
+        updatedAt: new Date('2024-01-22T14:30:00Z'),
+        requireConsent: true,
+        allowAnonymous: false,
+        stats: {
+          totalInvited: 8,
+          totalStarted: 6,
+          totalCompleted: 4,
+          averageCompletionTime: 15
+        }
+      }
+    ];
+    setAssessments(mockAssessments);
+  };
 
   // Load assessments and team members on component mount
   useEffect(() => {
@@ -244,7 +378,7 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
       window.removeEventListener('startSoloAssessment', handleSoloAssessmentStart);
       window.removeEventListener('storage', handleAssessmentChange);
     };
-  }, [organisation.id]);
+  }, [organisation.id, user?.id]);
 
   const handleContinueAssessment = (assessmentId: string) => {
     window.dispatchEvent(new CustomEvent('continueAssessment', {
@@ -258,70 +392,115 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     }));
   };
 
-  const handleCreateTeamWorkshop = () => {
+  const handleCreateTeamWorkshop = async () => {
     if (!teamWorkshopForm.name.trim()) return;
 
-    const newAssessment: Assessment = {
-      id: `assess-${Date.now()}`,
-      name: teamWorkshopForm.name || 'Team Workshop Assessment',
-      description: teamWorkshopForm.description,
-      projectId: 'solo-project',
-      organisationId: organisation.id,
-      templateId: 'template-1',
-      status: 'active',
-      createdBy: 'current-user',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      requireConsent: true,
-      allowAnonymous: teamWorkshopForm.allowAnonymous,
-      stats: {
-        totalInvited: selectedMembers.length + (newInviteEmails ? newInviteEmails.split(',').filter(e => e.trim()).length : 0),
-        totalStarted: 0,
-        totalCompleted: 0
-      }
-    };
-
-    // Add new assessment to list
-    setAssessments(prev => [newAssessment, ...prev]);
-
-    // Handle new invites
-    if (newInviteEmails.trim()) {
-      const emails = newInviteEmails.split(',').map(e => e.trim()).filter(e => e);
-      const newInvites = emails.map(email => ({
-        id: `invite-${Date.now()}-${Math.random()}`,
-        email,
+    try {
+      // Generate a unique room code for the assessment
+      const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      
+      const newAssessment: Assessment = {
+        id: `assess-${Date.now()}`, // Will be replaced by database ID
+        name: teamWorkshopForm.name || 'Team Workshop Assessment',
+        description: teamWorkshopForm.description,
+        projectId: 'solo-project',
         organisationId: organisation.id,
-        role: newInviteRole,
-        status: 'pending' as const,
-        invitedBy: 'current-user',
-        invitedAt: new Date(),
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        token: `token-${Date.now()}`
-      }));
+        templateId: 'template-1',
+        status: 'active',
+        createdBy: user?.id || 'current-user',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        requireConsent: true,
+        allowAnonymous: teamWorkshopForm.allowAnonymous,
+        stats: {
+          totalInvited: selectedMembers.length + (newInviteEmails ? newInviteEmails.split(',').filter(e => e.trim()).length : 0),
+          totalStarted: 0,
+          totalCompleted: 0
+        }
+      };
 
-      // Add to pending invites
-      try {
-        const existingInvites = JSON.parse(localStorage.getItem('pendingInvites') || '[]');
-        localStorage.setItem('pendingInvites', JSON.stringify([...existingInvites, ...newInvites]));
-        window.dispatchEvent(new CustomEvent('inviteChange'));
-      } catch (error) {
-        console.error('Error saving invites:', error);
+      // Save to database if user is authenticated
+      if (user) {
+        try {
+          const dbAssessment = await assessmentService.createAssessment({
+            name: newAssessment.name,
+            description: newAssessment.description,
+            organisationId: organisation.id,
+            createdBy: user.id,
+            templateId: newAssessment.templateId,
+            requireConsent: newAssessment.requireConsent,
+            allowAnonymous: newAssessment.allowAnonymous
+          });
+          
+          // Update assessment with database ID
+          newAssessment.id = dbAssessment.id;
+        } catch (error) {
+          console.error('Error saving assessment to database:', error);
+        }
       }
-    }
 
-    // Reset form and close modal
-    setTeamWorkshopForm({
-      name: '',
-      description: '',
-      maxParticipants: 50,
-      allowAnonymous: false,
-      showLiveResults: true
-    });
-    setSelectedMembers([]);
-    setMemberRoles({});
-    setNewInviteEmails('');
-    setNewInviteRole('participant');
-    setShowTeamWorkshopModal(false);
+      // Add new assessment to list
+      setAssessments(prev => [newAssessment, ...prev]);
+
+      // Handle new invites
+      if (newInviteEmails.trim()) {
+        const emails = newInviteEmails.split(',').map(e => e.trim()).filter(e => e);
+        const newInvites = emails.map(email => ({
+          id: `invite-${Date.now()}-${Math.random()}`,
+          email,
+          organisationId: organisation.id,
+          role: newInviteRole,
+          status: 'pending' as const,
+          invitedBy: 'current-user',
+          invitedAt: new Date(),
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          token: `token-${Date.now()}`
+        }));
+
+        // Save invites to database if user is authenticated
+        if (user) {
+          try {
+            for (const email of emails) {
+              await inviteService.createInvite({
+                email,
+                organisationId: organisation.id,
+                assessmentId: newAssessment.id,
+                role: 'participant',
+                invitedBy: user.id,
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+              });
+            }
+          } catch (error) {
+            console.error('Error saving invites to database:', error);
+          }
+        }
+
+        // Add to pending invites
+        try {
+          const existingInvites = JSON.parse(localStorage.getItem('pendingInvites') || '[]');
+          localStorage.setItem('pendingInvites', JSON.stringify([...existingInvites, ...newInvites]));
+          window.dispatchEvent(new CustomEvent('inviteChange'));
+        } catch (error) {
+          console.error('Error saving invites:', error);
+        }
+      }
+
+      // Reset form and close modal
+      setTeamWorkshopForm({
+        name: '',
+        description: '',
+        maxParticipants: 50,
+        allowAnonymous: false,
+        showLiveResults: true
+      });
+      setSelectedMembers([]);
+      setMemberRoles({});
+      setNewInviteEmails('');
+      setNewInviteRole('participant');
+      setShowTeamWorkshopModal(false);
+    } catch (error) {
+      console.error('Error creating team workshop:', error);
+    }
   };
 
   const handleEditAssessment = (assessment: Assessment) => {
@@ -333,37 +512,55 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     setShowEditModal(true);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editingAssessment || !editForm.name.trim()) return;
 
-    const updatedAssessment = {
-      ...editingAssessment,
-      name: editForm.name,
-      description: editForm.description,
-      updatedAt: new Date()
-    };
-
-    setAssessments(prev => prev.map(assessment => 
-      assessment.id === editingAssessment.id ? updatedAssessment : assessment
-    ));
-
-    // Update localStorage if it's a user-created assessment
     try {
-      const storedAssessments = JSON.parse(localStorage.getItem('userAssessments') || '[]');
-      const updatedStored = storedAssessments.map((assessment: Assessment) =>
-        assessment.id === editingAssessment.id ? updatedAssessment : assessment
-      );
-      localStorage.setItem('userAssessments', JSON.stringify(updatedStored));
-    } catch (error) {
-      console.error('Error updating stored assessment:', error);
-    }
+      const updatedAssessment = {
+        ...editingAssessment,
+        name: editForm.name,
+        description: editForm.description,
+        updatedAt: new Date()
+      };
 
-    setShowEditModal(false);
-    setEditingAssessment(null);
-    setEditForm({ name: '', description: '' });
-    
-    // Dispatch event to trigger re-render
-    window.dispatchEvent(new CustomEvent('assessmentUpdated'));
+      // Update in database if user is authenticated
+      if (user) {
+        try {
+          await assessmentService.updateAssessment(editingAssessment.id, {
+            name: updatedAssessment.name,
+            description: updatedAssessment.description,
+            require_consent: updatedAssessment.requireConsent,
+            allow_anonymous: updatedAssessment.allowAnonymous
+          });
+        } catch (error) {
+          console.error('Error updating assessment in database:', error);
+        }
+      }
+
+      setAssessments(prev => prev.map(assessment => 
+        assessment.id === editingAssessment.id ? updatedAssessment : assessment
+      ));
+
+      // Update localStorage if it's a user-created assessment
+      try {
+        const storedAssessments = JSON.parse(localStorage.getItem('userAssessments') || '[]');
+        const updatedStored = storedAssessments.map((assessment: Assessment) =>
+          assessment.id === editingAssessment.id ? updatedAssessment : assessment
+        );
+        localStorage.setItem('userAssessments', JSON.stringify(updatedStored));
+      } catch (error) {
+        console.error('Error updating stored assessment:', error);
+      }
+
+      setShowEditModal(false);
+      setEditingAssessment(null);
+      setEditForm({ name: '', description: '' });
+      
+      // Dispatch event to trigger re-render
+      window.dispatchEvent(new CustomEvent('assessmentUpdated'));
+    } catch (error) {
+      console.error('Error saving assessment edit:', error);
+    }
   };
 
   const handleManageAssessment = (assessment: Assessment) => {
@@ -509,104 +706,140 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
     }
   };
 
-  const handleUpdateAssessment = () => {
+  const handleUpdateAssessment = async () => {
     if (!managingAssessment || !teamWorkshopForm.name.trim()) return;
 
-    const updatedAssessment: Assessment = {
-      ...managingAssessment,
-      name: teamWorkshopForm.name,
-      description: teamWorkshopForm.description,
-      allowAnonymous: teamWorkshopForm.allowAnonymous,
-      updatedAt: new Date(),
-      stats: {
-        ...managingAssessment.stats,
-        totalInvited: managingAssessment.stats.totalInvited + selectedMembers.length + (newInviteEmails ? newInviteEmails.split(',').filter(e => e.trim()).length : 0)
+    try {
+      const updatedAssessment: Assessment = {
+        ...managingAssessment,
+        name: teamWorkshopForm.name,
+        description: teamWorkshopForm.description,
+        allowAnonymous: teamWorkshopForm.allowAnonymous,
+        updatedAt: new Date(),
+        stats: {
+          ...managingAssessment.stats,
+          totalInvited: managingAssessment.stats.totalInvited + selectedMembers.length + (newInviteEmails ? newInviteEmails.split(',').filter(e => e.trim()).length : 0)
+        }
+      };
+
+      // Update in database if user is authenticated
+      if (user) {
+        try {
+          await assessmentService.updateAssessment(managingAssessment.id, {
+            name: updatedAssessment.name,
+            description: updatedAssessment.description,
+            require_consent: updatedAssessment.requireConsent,
+            allow_anonymous: updatedAssessment.allowAnonymous
+          });
+        } catch (error) {
+          console.error('Error updating assessment in database:', error);
+        }
       }
-    };
 
-    // Update assessment in list
-    setAssessments(prev => prev.map(assessment => 
-      assessment.id === managingAssessment.id ? updatedAssessment : assessment
-    ));
+      // Update assessment in list
+      setAssessments(prev => prev.map(assessment => 
+        assessment.id === managingAssessment.id ? updatedAssessment : assessment
+      ));
 
-    // Handle new invites
-    if (newInviteEmails.trim()) {
-      const emails = newInviteEmails.split(',').map(e => e.trim()).filter(e => e);
-      const newInvites = emails.map(email => ({
-        id: `invite-${Date.now()}-${Math.random()}`,
-        email,
-        organisationId: organisation.id,
-        assessmentId: managingAssessment.id,
-        role: newInviteRole,
-        status: 'pending' as const,
-        invitedBy: 'current-user',
-        invitedAt: new Date(),
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        token: `token-${Date.now()}`
-      }));
-
-      // Add to pending invites
-      try {
-        const existingInvites = JSON.parse(localStorage.getItem('pendingInvites') || '[]');
-        localStorage.setItem('pendingInvites', JSON.stringify([...existingInvites, ...newInvites]));
-        window.dispatchEvent(new CustomEvent('inviteChange'));
-      } catch (error) {
-        console.error('Error saving invites:', error);
-      }
-      
-      // Save new invites to localStorage for this assessment
+      // Handle new invites
       if (newInviteEmails.trim()) {
-        const emails = newInviteEmails
-          .split(',')
-          .map(email => email.trim())
-          .filter(email => email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
-        
+        const emails = newInviteEmails.split(',').map(e => e.trim()).filter(e => e);
         const newInvites = emails.map(email => ({
           id: `invite-${Date.now()}-${Math.random()}`,
           email,
+          organisationId: organisation.id,
           assessmentId: managingAssessment.id,
+          role: newInviteRole,
           status: 'pending' as const,
+          invitedBy: 'current-user',
           invitedAt: new Date(),
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          token: `token-${Date.now()}`
         }));
+
+        // Save invites to database if user is authenticated
+        if (user) {
+          try {
+            for (const email of emails) {
+              await inviteService.createInvite({
+                email,
+                organisationId: organisation.id,
+                assessmentId: managingAssessment.id,
+                role: 'participant',
+                invitedBy: user.id,
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+              });
+            }
+          } catch (error) {
+            console.error('Error saving invites to database:', error);
+          }
+        }
+
+        // Add to pending invites
+        try {
+          const existingInvites = JSON.parse(localStorage.getItem('pendingInvites') || '[]');
+          localStorage.setItem('pendingInvites', JSON.stringify([...existingInvites, ...newInvites]));
+          window.dispatchEvent(new CustomEvent('inviteChange'));
+        } catch (error) {
+          console.error('Error saving invites:', error);
+        }
         
-        const existingInvites = pendingAssessmentInvites;
-        const allInvites = [...existingInvites, ...newInvites];
-        setPendingAssessmentInvites(allInvites);
-        
-        // Save to localStorage
-        localStorage.setItem(`assessmentInvites_${managingAssessment.id}`, JSON.stringify(allInvites));
+        // Save new invites to localStorage for this assessment
+        if (newInviteEmails.trim()) {
+          const emails = newInviteEmails
+            .split(',')
+            .map(email => email.trim())
+            .filter(email => email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+          
+          const newInvites = emails.map(email => ({
+            id: `invite-${Date.now()}-${Math.random()}`,
+            email,
+            assessmentId: managingAssessment.id,
+            status: 'pending' as const,
+            invitedAt: new Date(),
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+          }));
+          
+          const existingInvites = pendingAssessmentInvites;
+          const allInvites = [...existingInvites, ...newInvites];
+          setPendingAssessmentInvites(allInvites);
+          
+          // Save to localStorage
+          localStorage.setItem(`assessmentInvites_${managingAssessment.id}`, JSON.stringify(allInvites));
+        }
       }
-    }
 
-    // Update localStorage if it's a user-created assessment
-    try {
-      const storedAssessments = JSON.parse(localStorage.getItem('userAssessments') || '[]');
-      const updatedStored = storedAssessments.map((assessment: Assessment) =>
-        assessment.id === managingAssessment.id ? updatedAssessment : assessment
-      );
-      localStorage.setItem('userAssessments', JSON.stringify(updatedStored));
+      // Update localStorage if it's a user-created assessment
+      try {
+        const storedAssessments = JSON.parse(localStorage.getItem('userAssessments') || '[]');
+        const updatedStored = storedAssessments.map((assessment: Assessment) =>
+          assessment.id === managingAssessment.id ? updatedAssessment : assessment
+        );
+        localStorage.setItem('userAssessments', JSON.stringify(updatedStored));
+      } catch (error) {
+        console.error('Error updating stored assessment:', error);
+      }
+
+      // Reset form and close modal
+      setTeamWorkshopForm({
+        name: '',
+        description: '',
+        maxParticipants: 50,
+        allowAnonymous: false,
+        showLiveResults: true
+      });
+      setSelectedMembers([]);
+      setMemberRoles({});
+      setNewInviteEmails('');
+      setNewInviteRole('participant');
+      setShowManageModal(false);
+      setManagingAssessment(null);
+      
+      // Dispatch event to trigger re-render
+      window.dispatchEvent(new CustomEvent('assessmentUpdated'));
     } catch (error) {
-      console.error('Error updating stored assessment:', error);
+      console.error('Error updating assessment:', error);
     }
-
-    // Reset form and close modal
-    setTeamWorkshopForm({
-      name: '',
-      description: '',
-      maxParticipants: 50,
-      allowAnonymous: false,
-      showLiveResults: true
-    });
-    setSelectedMembers([]);
-    setMemberRoles({});
-    setNewInviteEmails('');
-    setNewInviteRole('participant');
-    setShowManageModal(false);
-    setManagingAssessment(null);
-    
-    // Dispatch event to trigger re-render
-    window.dispatchEvent(new CustomEvent('assessmentUpdated'));
   };
 
   const handleDeleteAssessment = (assessmentId: string) => {
@@ -784,6 +1017,14 @@ export function AssessmentsTab({ organisation, member }: AssessmentsTabProps) {
         return status;
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   const canCreateAssessment = hasPermission(member.role, 'CREATE_ASSESSMENT');
   const canEditAssessment = hasPermission(member.role, 'EDIT_ASSESSMENT');

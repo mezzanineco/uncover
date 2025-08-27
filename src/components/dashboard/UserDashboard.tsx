@@ -51,7 +51,7 @@ export function UserDashboard({ user, organisation, member, onLogout, onStartAss
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'assessments':
-        return <AssessmentsTab organisation={organisation} member={member} />;
+        return <AssessmentsTab user={user} organisation={organisation} member={member} />;
       case 'team':
         return <TeamTab organisation={organisation} member={member} />;
       case 'pdfs':
