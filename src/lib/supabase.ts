@@ -5,6 +5,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-k
 
 // Only create real Supabase client if proper credentials are provided
 const hasValidCredentials = supabaseUrl !== 'https://placeholder.supabase.co' && 
+                           supabaseUrl !== 'https://your-project-id.supabase.co' &&
                            supabaseAnonKey !== 'placeholder-key' &&
                            supabaseUrl.includes('.supabase.co')
 
