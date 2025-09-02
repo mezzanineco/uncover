@@ -130,7 +130,7 @@ interface Asset {
 }
 
 // Permission checking
-export const PERMISSIONS = {
+const PERMISSIONS = {
   MANAGE_QUESTION_BANKS: ['super_admin'],
   MANAGE_ARCHETYPES: ['super_admin'],
   MANAGE_CLIENTS: ['super_admin', 'facilitator'],

@@ -138,7 +138,7 @@ export interface PDFExport {
   lastDownloadedAt?: Date;
 }
 
-export interface AuthState {
+interface AuthState {
   user: User | null;
   organisation: Organisation | null;
   member: OrganisationMember | null;

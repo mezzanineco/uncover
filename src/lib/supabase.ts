@@ -15,7 +15,7 @@ export const supabase = hasValidCredentials
 export const isSupabaseConfigured = hasValidCredentials
 
 // Database types
-export interface Database {
+interface Database {
   public: {
     Tables: {
       users: {
