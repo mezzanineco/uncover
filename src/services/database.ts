@@ -448,7 +448,7 @@ export const inviteService = {
     expiresAt: string
   }) {
     const token = crypto.randomUUID()
-    
+
     const { data, error } = await supabase
       .from('invites')
       .insert([{
@@ -462,9 +462,117 @@ export const inviteService = {
       }])
       .select()
       .single()
-    
+
     if (error) throw error
+
+    try {
+      await this.sendInviteEmail(data.id, data.token, inviteData.assessmentId ? 'assessment' : 'organization');
+    } catch (emailError) {
+      console.error('Failed to send invite email:', emailError);
+    }
+
     return data
+  },
+
+  async sendInviteEmail(inviteId: string, token: string, inviteType: 'organization' | 'assessment') {
+    try {
+      const { data: invite } = await supabase
+        .from('invites')
+        .select(`
+          *,
+          organisations!invites_organisation_id_fkey(name),
+          assessments!invites_assessment_id_fkey(name),
+          inviter:users!invites_invited_by_fkey(name)
+        `)
+        .eq('id', inviteId)
+        .single();
+
+      if (!invite) {
+        throw new Error('Invite not found');
+      }
+
+      const baseUrl = window.location.origin;
+      const inviteUrl = `${baseUrl}/invite/${token}`;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-invite-email`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            inviteId,
+            email: invite.email,
+            inviteType,
+            organizationName: invite.organisations?.name || 'Our Organization',
+            inviterName: invite.inviter?.name || 'Someone',
+            assessmentName: invite.assessments?.name,
+            inviteUrl,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (response.ok) {
+        await supabase
+          .from('invites')
+          .update({
+            email_sent_at: new Date().toISOString(),
+            email_error: null
+          })
+          .eq('id', inviteId);
+      } else {
+        await supabase
+          .from('invites')
+          .update({
+            email_error: result.error || 'Failed to send email'
+          })
+          .eq('id', inviteId);
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error in sendInviteEmail:', error);
+
+      await supabase
+        .from('invites')
+        .update({
+          email_error: error instanceof Error ? error.message : 'Unknown error'
+        })
+        .eq('id', inviteId);
+
+      throw error;
+    }
+  },
+
+  async resendInvite(inviteId: string) {
+    const { data: invite } = await supabase
+      .from('invites')
+      .select('token, assessment_id')
+      .eq('id', inviteId)
+      .single();
+
+    if (!invite) {
+      throw new Error('Invite not found');
+    }
+
+    await supabase
+      .from('invites')
+      .update({
+        resend_count: supabase.rpc('increment', { row_id: inviteId }),
+        invited_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      })
+      .eq('id', inviteId);
+
+    return this.sendInviteEmail(
+      inviteId,
+      invite.token,
+      invite.assessment_id ? 'assessment' : 'organization'
+    );
   },
 
   async getInvitesByOrganisation(organisationId: string) {

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Plus, 
-  Users, 
-  Mail, 
+import {
+  Plus,
+  Users,
+  Mail,
   Edit3,
   UserCheck,
   UserX,
@@ -17,6 +17,7 @@ import {
 import { Button } from '../../common/Button';
 import type { Organisation, OrganisationMember, Invite } from '../../../types/auth';
 import { hasPermission } from '../../../types/auth';
+import { inviteService } from '../../../services/database';
 
 interface TeamTabProps {
   organisation: Organisation;
@@ -311,12 +312,21 @@ export function TeamTab({ organisation, member }: TeamTabProps) {
     window.dispatchEvent(new CustomEvent('inviteChange'));
   };
 
-  const handleResendInvite = (inviteId: string) => {
-    setPendingInvites(prev => prev.map(invite => 
-      invite.id === inviteId 
-        ? { ...invite, invitedAt: new Date(), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) }
-        : invite
-    ));
+  const handleResendInvite = async (inviteId: string) => {
+    try {
+      await inviteService.resendInvite(inviteId);
+
+      setPendingInvites(prev => prev.map(invite =>
+        invite.id === inviteId
+          ? { ...invite, invitedAt: new Date(), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) }
+          : invite
+      ));
+
+      alert('Invitation email resent successfully!');
+    } catch (error) {
+      console.error('Error resending invite:', error);
+      alert('Failed to resend invitation. Please try again.');
+    }
   };
 
   const canInviteMembers = hasPermission(member.role, 'INVITE_MEMBERS');

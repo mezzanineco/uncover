@@ -10,10 +10,11 @@ import { LandingPage } from './components/layout/LandingPage';
 import { AssessmentFlow } from './components/assessment/AssessmentFlow';
 import { ResultsDashboard } from './components/results/ResultsDashboard';
 import { AdminDashboard } from './components/admin/AdminDashboard';
+import { InviteAcceptance } from './components/invite/InviteAcceptance';
 import { ASSESSMENT_CONFIG } from './data/questions';
 import type { AssessmentResult } from './types';
 
-type AppState = 'landing' | 'auth' | 'assessment' | 'results';
+type AppState = 'landing' | 'auth' | 'assessment' | 'results' | 'invite';
 type AuthMode = 'signup' | 'login' | 'verify';
 
 function AppContent() {
@@ -26,6 +27,7 @@ function AppContent() {
   const [responses, setResponses] = useState<Response[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [currentAssessmentId, setCurrentAssessmentId] = useState<string | null>(null);
+  const [inviteToken, setInviteToken] = useState<string>('');
 
   // Handler functions - declared early to avoid hoisting issues
   const handleStartAssessment = () => {
@@ -145,6 +147,16 @@ function AppContent() {
     setCurrentQuestionIndex(0);
     setCurrentAssessmentId(null);
   };
+
+  // Check for invite token in URL on mount
+  useEffect(() => {
+    const path = window.location.pathname;
+    const inviteMatch = path.match(/^\/invite\/([a-f0-9-]+)$/i);
+    if (inviteMatch) {
+      setInviteToken(inviteMatch[1]);
+      setCurrentState('invite');
+    }
+  }, []);
 
   // Event listeners for dashboard interactions
   useEffect(() => {
@@ -271,6 +283,18 @@ function AppContent() {
   // Direct admin access for testing (no login required)
   if (currentState === 'admin') {
     return <AdminDashboard />;
+  }
+
+  // Invite acceptance page
+  if (currentState === 'invite' && inviteToken) {
+    return (
+      <InviteAcceptance
+        token={inviteToken}
+        onSuccess={() => {
+          window.location.href = '/dashboard';
+        }}
+      />
+    );
   }
 
   if (currentState === 'auth') {

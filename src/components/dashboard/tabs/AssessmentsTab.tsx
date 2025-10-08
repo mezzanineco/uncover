@@ -639,35 +639,47 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
     }
   };
 
-  const handleResendInvite = (participantId: string) => {
+  const handleResendInvite = async (participantId: string) => {
     const participant = assessmentParticipants.find(p => p.id === participantId);
     if (participant) {
-      // Update the invited date
-      setAssessmentParticipants(prev => prev.map(p => 
-        p.id === participantId 
-          ? { ...p, invitedAt: new Date() }
-          : p
-      ));
-      
-      // Show success message (in production, this would trigger an actual email)
-      alert(`Invitation resent to ${participant.email}`);
+      try {
+        await inviteService.resendInvite(participantId);
+
+        setAssessmentParticipants(prev => prev.map(p =>
+          p.id === participantId
+            ? { ...p, invitedAt: new Date() }
+            : p
+        ));
+
+        alert(`Invitation email resent to ${participant.email}`);
+      } catch (error) {
+        console.error('Error resending invite:', error);
+        alert('Failed to resend invitation. Please try again.');
+      }
     }
   };
 
-  const handleResendPendingInvite = (inviteId: string) => {
-    setPendingAssessmentInvites(prev => prev.map(invite => 
-      invite.id === inviteId 
-        ? { 
-            ...invite, 
-            invitedAt: new Date(), 
-            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days from now
-          }
-        : invite
-    ));
-    
-    const invite = pendingAssessmentInvites.find(i => i.id === inviteId);
-    if (invite) {
-      alert(`Invitation resent to ${invite.email}`);
+  const handleResendPendingInvite = async (inviteId: string) => {
+    try {
+      await inviteService.resendInvite(inviteId);
+
+      setPendingAssessmentInvites(prev => prev.map(invite =>
+        invite.id === inviteId
+          ? {
+              ...invite,
+              invitedAt: new Date(),
+              expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+            }
+          : invite
+      ));
+
+      const invite = pendingAssessmentInvites.find(i => i.id === inviteId);
+      if (invite) {
+        alert(`Invitation email resent to ${invite.email}`);
+      }
+    } catch (error) {
+      console.error('Error resending invite:', error);
+      alert('Failed to resend invitation. Please try again.');
     }
   };
 

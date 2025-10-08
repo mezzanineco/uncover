@@ -1,0 +1,318 @@
+import React, { useState, useEffect } from 'react';
+import { Mail, CheckCircle, XCircle, Loader2, UserPlus } from 'lucide-react';
+import { Button } from '../common/Button';
+import { inviteService, userService, memberService } from '../../services/database';
+import { supabase } from '../../lib/supabase';
+
+interface InviteAcceptanceProps {
+  token: string;
+  onSuccess?: () => void;
+}
+
+interface InviteData {
+  id: string;
+  email: string;
+  organisationId: string;
+  assessmentId: string | null;
+  role: string;
+  status: string;
+  expiresAt: string;
+  invitedAt: string;
+  organizationName?: string;
+  assessmentName?: string;
+}
+
+export function InviteAcceptance({ token, onSuccess }: InviteAcceptanceProps) {
+  const [loading, setLoading] = useState(true);
+  const [invite, setInvite] = useState<InviteData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [accepting, setAccepting] = useState(false);
+  const [newUserForm, setNewUserForm] = useState({
+    name: '',
+    password: '',
+    confirmPassword: ''
+  });
+  const [isNewUser, setIsNewUser] = useState(false);
+
+  useEffect(() => {
+    loadInvite();
+  }, [token]);
+
+  const loadInvite = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data, error: fetchError } = await supabase
+        .from('invites')
+        .select(`
+          *,
+          organisations!invites_organisation_id_fkey(name),
+          assessments!invites_assessment_id_fkey(name)
+        `)
+        .eq('token', token)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+
+      if (!data) {
+        setError('Invitation not found or has been revoked.');
+        return;
+      }
+
+      if (data.status === 'accepted') {
+        setError('This invitation has already been accepted.');
+        return;
+      }
+
+      if (data.status === 'expired' || new Date(data.expires_at) < new Date()) {
+        setError('This invitation has expired.');
+        return;
+      }
+
+      setInvite({
+        id: data.id,
+        email: data.email,
+        organisationId: data.organisation_id,
+        assessmentId: data.assessment_id,
+        role: data.role,
+        status: data.status,
+        expiresAt: data.expires_at,
+        invitedAt: data.invited_at,
+        organizationName: data.organisations?.name,
+        assessmentName: data.assessments?.name
+      });
+
+      const existingUser = await userService.getUserByEmail(data.email);
+      setIsNewUser(!existingUser);
+    } catch (err) {
+      console.error('Error loading invite:', err);
+      setError('Failed to load invitation details. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAcceptInvite = async () => {
+    if (!invite) return;
+
+    if (isNewUser) {
+      if (!newUserForm.name.trim()) {
+        setError('Please enter your name.');
+        return;
+      }
+      if (!newUserForm.password || newUserForm.password.length < 8) {
+        setError('Password must be at least 8 characters long.');
+        return;
+      }
+      if (newUserForm.password !== newUserForm.confirmPassword) {
+        setError('Passwords do not match.');
+        return;
+      }
+    }
+
+    try {
+      setAccepting(true);
+      setError(null);
+
+      let userId: string;
+
+      if (isNewUser) {
+        const newUser = await userService.createUser({
+          email: invite.email,
+          name: newUserForm.name
+        });
+        userId = newUser.id;
+      } else {
+        const existingUser = await userService.getUserByEmail(invite.email);
+        if (!existingUser) {
+          throw new Error('User not found');
+        }
+        userId = existingUser.id;
+      }
+
+      await memberService.addMember({
+        userId,
+        organisationId: invite.organisationId,
+        role: invite.role,
+        invitedBy: undefined
+      });
+
+      await inviteService.updateInviteStatus(invite.id, 'accepted');
+
+      await supabase
+        .from('invites')
+        .update({ accepted_at: new Date().toISOString() })
+        .eq('id', invite.id);
+
+      if (invite.assessmentId) {
+        window.location.href = `/assessment/${invite.assessmentId}`;
+      } else {
+        window.location.href = '/dashboard';
+      }
+
+      if (onSuccess) {
+        onSuccess();
+      }
+    } catch (err) {
+      console.error('Error accepting invite:', err);
+      setError('Failed to accept invitation. Please try again.');
+    } finally {
+      setAccepting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+          <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading invitation...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+          <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Invalid Invitation</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <Button onClick={() => window.location.href = '/'}>
+            Return to Home
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!invite) {
+    return null;
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Mail className="w-8 h-8 text-blue-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            {invite.assessmentId ? "You're Invited!" : 'Join Our Team'}
+          </h1>
+          <p className="text-gray-600">
+            {invite.assessmentId
+              ? `Complete the "${invite.assessmentName}" assessment`
+              : `Join ${invite.organizationName}`
+            }
+          </p>
+        </div>
+
+        <div className="bg-gray-50 rounded-lg p-4 mb-6">
+          <div className="flex items-start">
+            <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-gray-900">Invited to:</p>
+              <p className="text-sm text-gray-600">{invite.organizationName}</p>
+              {invite.assessmentName && (
+                <>
+                  <p className="text-sm font-medium text-gray-900 mt-2">Assessment:</p>
+                  <p className="text-sm text-gray-600">{invite.assessmentName}</p>
+                </>
+              )}
+              <p className="text-sm font-medium text-gray-900 mt-2">Role:</p>
+              <p className="text-sm text-gray-600 capitalize">{invite.role.replace('_', ' ')}</p>
+            </div>
+          </div>
+        </div>
+
+        {isNewUser && (
+          <div className="space-y-4 mb-6">
+            <p className="text-sm text-gray-600 flex items-center">
+              <UserPlus className="w-4 h-4 mr-2" />
+              Create your account to accept this invitation
+            </p>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Full Name *
+              </label>
+              <input
+                type="text"
+                value={newUserForm.name}
+                onChange={(e) => setNewUserForm(prev => ({ ...prev, name: e.target.value }))}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter your name"
+                disabled={accepting}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Email
+              </label>
+              <input
+                type="email"
+                value={invite.email}
+                disabled
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Password *
+              </label>
+              <input
+                type="password"
+                value={newUserForm.password}
+                onChange={(e) => setNewUserForm(prev => ({ ...prev, password: e.target.value }))}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Minimum 8 characters"
+                disabled={accepting}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Confirm Password *
+              </label>
+              <input
+                type="password"
+                value={newUserForm.confirmPassword}
+                onChange={(e) => setNewUserForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Re-enter password"
+                disabled={accepting}
+              />
+            </div>
+          </div>
+        )}
+
+        <Button
+          onClick={handleAcceptInvite}
+          disabled={accepting}
+          className="w-full"
+        >
+          {accepting ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              {isNewUser ? 'Creating Account...' : 'Accepting...'}
+            </>
+          ) : (
+            <>
+              <CheckCircle className="w-4 h-4 mr-2" />
+              {isNewUser ? 'Create Account & Accept' : 'Accept Invitation'}
+            </>
+          )}
+        </Button>
+
+        <p className="text-xs text-gray-500 text-center mt-4">
+          Invitation expires on {new Date(invite.expiresAt).toLocaleDateString()}
+        </p>
+      </div>
+    </div>
+  );
+}
