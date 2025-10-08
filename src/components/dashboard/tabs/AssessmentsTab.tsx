@@ -57,6 +57,8 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
   const [editingAssessment, setEditingAssessment] = useState<Assessment | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', description: '' });
+  const [showSoloAssessmentModal, setShowSoloAssessmentModal] = useState(false);
+  const [soloAssessmentForm, setSoloAssessmentForm] = useState({ name: '', description: '' });
   const [assessmentParticipants, setAssessmentParticipants] = useState<Array<{
     id: string;
     name: string;
@@ -279,9 +281,67 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
   };
 
   const handleStartSoloAssessment = () => {
-    window.dispatchEvent(new CustomEvent('startSoloAssessment', {
-      detail: { fromDashboard: true }
-    }));
+    setSoloAssessmentForm({
+      name: 'My Brand Archetype Assessment',
+      description: 'Personal brand archetype discovery assessment'
+    });
+    setShowSoloAssessmentModal(true);
+  };
+
+  const handleCreateSoloAssessment = async () => {
+    if (!soloAssessmentForm.name.trim()) return;
+
+    try {
+      const soloAssessment: Assessment = {
+        id: `solo-assess-${Date.now()}`,
+        name: soloAssessmentForm.name,
+        description: soloAssessmentForm.description,
+        projectId: 'solo-project',
+        organisationId: organisation.id,
+        templateId: 'template-1',
+        status: 'in_progress',
+        createdBy: user?.id || 'current-user',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        requireConsent: true,
+        allowAnonymous: false,
+        stats: {
+          totalInvited: 1,
+          totalStarted: 1,
+          totalCompleted: 0
+        }
+      };
+
+      if (user) {
+        try {
+          const dbAssessment = await assessmentService.createAssessment({
+            name: soloAssessment.name,
+            description: soloAssessment.description,
+            organisationId: organisation.id,
+            createdBy: user.id,
+            templateId: soloAssessment.templateId,
+            requireConsent: soloAssessment.requireConsent,
+            allowAnonymous: soloAssessment.allowAnonymous
+          });
+
+          soloAssessment.id = dbAssessment.id;
+
+          setShowSoloAssessmentModal(false);
+          setSoloAssessmentForm({ name: '', description: '' });
+
+          window.dispatchEvent(new CustomEvent('startSoloAssessmentWithId', {
+            detail: {
+              assessmentId: dbAssessment.id,
+              fromDashboard: true
+            }
+          }));
+        } catch (error) {
+          console.error('Error saving solo assessment to database:', error);
+        }
+      }
+    } catch (error) {
+      console.error('Error creating solo assessment:', error);
+    }
   };
 
   const handleCreateTeamWorkshop = async () => {
@@ -1122,6 +1182,61 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
                 onClick={() => setShowCreateModal(false)}
               >
                 Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Solo Assessment Modal */}
+      {showSoloAssessmentModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Start Solo Assessment</h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Assessment Name *
+                </label>
+                <input
+                  type="text"
+                  value={soloAssessmentForm.name}
+                  onChange={(e) => setSoloAssessmentForm(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter assessment name"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={soloAssessmentForm.description}
+                  onChange={(e) => setSoloAssessmentForm(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  rows={3}
+                  placeholder="Describe your assessment (optional)"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowSoloAssessmentModal(false);
+                  setSoloAssessmentForm({ name: '', description: '' });
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateSoloAssessment}
+                disabled={!soloAssessmentForm.name.trim()}
+              >
+                Start Assessment
               </Button>
             </div>
           </div>
