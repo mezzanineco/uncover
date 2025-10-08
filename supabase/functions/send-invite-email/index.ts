@@ -92,7 +92,7 @@ Deno.serve(async (req: Request) => {
         'Authorization': `Bearer ${resendApiKey}`,
       },
       body: JSON.stringify({
-        from: 'Archetype Finder <invites@yourdomain.com>',
+        from: 'Archetype Finder <onboarding@resend.dev>',
         to: [email],
         subject,
         html: htmlContent,
