@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { assessmentService, inviteService } from '../../../services/database';
+import { assessmentService, inviteService, responseService } from '../../../services/database';
 import { 
   Plus, 
   Play, 
@@ -124,24 +124,52 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
       // Load assessments from database
       const dbAssessments = await assessmentService.getAssessmentsByOrganisation(organisation.id);
 
-      // Transform database assessments to match our interface
-      const transformedAssessments = dbAssessments.map((assessment: any) => ({
-        id: assessment.id,
-        name: assessment.name,
-        description: assessment.description,
-        projectId: assessment.project_id,
-        organisationId: assessment.organisation_id,
-        templateId: assessment.template_id,
-        status: assessment.status,
-        createdBy: assessment.created_by,
-        createdAt: new Date(assessment.created_at),
-        updatedAt: new Date(assessment.updated_at),
-        requireConsent: assessment.require_consent,
-        allowAnonymous: assessment.allow_anonymous,
-        stats: assessment.stats
-      }));
+      // Load response counts for each assessment to calculate progress
+      const assessmentsWithProgress = await Promise.all(
+        dbAssessments.map(async (assessment: any) => {
+          try {
+            const responses = await responseService.getResponsesByAssessment(assessment.id, user?.id);
+            const uniqueQuestions = new Set(responses.map((r: any) => r.question_id));
+            const questionsAnswered = uniqueQuestions.size;
 
-      setAssessments(transformedAssessments);
+            return {
+              id: assessment.id,
+              name: assessment.name,
+              description: assessment.description,
+              projectId: assessment.project_id,
+              organisationId: assessment.organisation_id,
+              templateId: assessment.template_id,
+              status: assessment.status,
+              createdBy: assessment.created_by,
+              createdAt: new Date(assessment.created_at),
+              updatedAt: new Date(assessment.updated_at),
+              requireConsent: assessment.require_consent,
+              allowAnonymous: assessment.allow_anonymous,
+              stats: assessment.stats,
+              questionsAnswered
+            };
+          } catch (error) {
+            return {
+              id: assessment.id,
+              name: assessment.name,
+              description: assessment.description,
+              projectId: assessment.project_id,
+              organisationId: assessment.organisation_id,
+              templateId: assessment.template_id,
+              status: assessment.status,
+              createdBy: assessment.created_by,
+              createdAt: new Date(assessment.created_at),
+              updatedAt: new Date(assessment.updated_at),
+              requireConsent: assessment.require_consent,
+              allowAnonymous: assessment.allow_anonymous,
+              stats: assessment.stats,
+              questionsAnswered: 0
+            };
+          }
+        })
+      );
+
+      setAssessments(assessmentsWithProgress);
     } catch (error) {
       console.error('Error loading assessments:', error);
       setAssessments([]);
@@ -744,11 +772,16 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
     setShowResultsModal(true);
   };
 
-  const getProgressPercentage = (assessment: Assessment) => {
+  const getProgressPercentage = (assessment: any) => {
     if (assessment.status === 'completed') return 100;
-    if (assessment.status === 'draft') return 0;
-    if (assessment.stats.totalInvited === 0) return 0;
-    return Math.round((assessment.stats.totalCompleted / assessment.stats.totalInvited) * 100);
+    if (assessment.status === 'draft' && !assessment.questionsAnswered) return 0;
+
+    const TOTAL_QUESTIONS = 31;
+    const questionsAnswered = assessment.questionsAnswered || 0;
+
+    if (questionsAnswered === 0) return 0;
+
+    return Math.round((questionsAnswered / TOTAL_QUESTIONS) * 100);
   };
 
   const getProgressColor = (percentage: number) => {
@@ -964,7 +997,7 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center space-x-2">
-                      {assessment.status === 'in_progress' && (
+                      {(assessment.status === 'in_progress' || (assessment.status === 'draft' && assessment.questionsAnswered > 0)) && (
                         <Button
                           size="sm"
                           onClick={() => handleContinueAssessment(assessment.id)}
@@ -985,7 +1018,7 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
                           <span onClick={() => handleViewResults(assessment)}>View Results</span>
                         </Button>
                       )}
-                      {assessment.status === 'draft' && (
+                      {assessment.status === 'draft' && !assessment.questionsAnswered && (
                         <Button size="sm">
                           <Play className="w-4 h-4 mr-1" />
                           Launch

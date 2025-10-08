@@ -304,9 +304,54 @@ export const responseService = {
       }])
       .select()
       .single()
-    
+
     if (error) throw error
+
+    await this.updateAssessmentProgress(responseData.assessmentId);
+
     return data
+  },
+
+  async updateAssessmentProgress(assessmentId: string) {
+    try {
+      const responses = await this.getResponsesByAssessment(assessmentId);
+      const uniqueQuestions = new Set(responses.map((r: any) => r.question_id));
+      const questionsAnswered = uniqueQuestions.size;
+
+      const { data: assessment } = await supabase
+        .from('assessments')
+        .select('status, stats')
+        .eq('id', assessmentId)
+        .single();
+
+      if (!assessment) return;
+
+      const currentStats = assessment.stats || {
+        totalInvited: 1,
+        totalStarted: 0,
+        totalCompleted: 0,
+        averageCompletionTime: null
+      };
+
+      const updatedStats = {
+        ...currentStats,
+        totalStarted: questionsAnswered > 0 ? 1 : 0,
+      };
+
+      const newStatus = questionsAnswered > 0 ? 'in_progress' : assessment.status;
+
+      await supabase
+        .from('assessments')
+        .update({
+          status: newStatus,
+          stats: updatedStats,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', assessmentId);
+
+    } catch (error) {
+      console.error('Error updating assessment progress:', error);
+    }
   },
 
   async getResponsesByAssessment(assessmentId: string, userId?: string) {
