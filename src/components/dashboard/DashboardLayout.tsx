@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  FolderOpen, 
-  FileText, 
-  Users, 
-  Download, 
-  Settings, 
+import {
+  FolderOpen,
+  FileText,
+  Users,
+  Download,
+  Settings,
   LogOut,
   Menu,
   X,
@@ -18,6 +18,7 @@ import {
 import { Button } from '../common/Button';
 import type { User, Organisation, OrganisationMember, DashboardStats } from '../../types/auth';
 import { hasPermission } from '../../types/auth';
+import { supabase } from '../../lib/supabase';
 
 interface DashboardLayoutProps {
   user: User;
@@ -44,29 +45,36 @@ export function DashboardLayout({
 }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dynamicAssessmentCount, setDynamicAssessmentCount] = useState(0);
+  const [dynamicUserCount, setDynamicUserCount] = useState(0);
   const [dynamicMemberStats, setDynamicMemberStats] = useState({ accepted: 0, invited: 0 });
 
-  // Calculate dynamic assessment count
-  const calculateAssessmentCount = () => {
+  // Fetch assessment count from database
+  const fetchAssessmentCount = async () => {
     try {
-      const storedAssessments = localStorage.getItem('userAssessments');
-      const userAssessments = storedAssessments ? JSON.parse(storedAssessments) : [];
-      
-      // Also check for saved progress
-      const savedProgress = localStorage.getItem('assessmentProgress');
-      let progressCount = 0;
-      if (savedProgress) {
-        progressCount = 1;
-      }
-      
-      // Count all assessments (both completed and in-progress)
-      // Default assessments from mock data
-      const defaultAssessmentCount = 3; // assess-1, assess-2, assess-3 from AssessmentsTab
-      
-      return defaultAssessmentCount + userAssessments.length + progressCount;
+      const { count, error } = await supabase
+        .from('assessments')
+        .select('*', { count: 'exact', head: true });
+
+      if (error) throw error;
+      return count || 0;
     } catch (error) {
-      console.error('Error calculating assessment count:', error);
-      return 3; // Fallback to default count
+      console.error('Error fetching assessment count:', error);
+      return 0;
+    }
+  };
+
+  // Fetch user count from database
+  const fetchUserCount = async () => {
+    try {
+      const { count, error } = await supabase
+        .from('users')
+        .select('*', { count: 'exact', head: true });
+
+      if (error) throw error;
+      return count || 0;
+    } catch (error) {
+      console.error('Error fetching user count:', error);
+      return 0;
     }
   };
 
@@ -77,12 +85,12 @@ export function DashboardLayout({
       const storedMembers = localStorage.getItem('teamMembers');
       const teamMembers = storedMembers ? JSON.parse(storedMembers) : [];
       const acceptedMembers = teamMembers.filter((member: any) => member.status === 'active').length;
-      
+
       // Count pending invites
       const storedInvites = localStorage.getItem('pendingInvites');
       const pendingInvites = storedInvites ? JSON.parse(storedInvites) : [];
       const invitedCount = pendingInvites.length;
-      
+
       return { accepted: acceptedMembers, invited: invitedCount };
     } catch (error) {
       console.error('Error calculating member stats:', error);
@@ -92,16 +100,20 @@ export function DashboardLayout({
 
   // Update count on mount and when assessments change
   useEffect(() => {
-    const updateCount = () => {
-      setDynamicAssessmentCount(calculateAssessmentCount());
+    const updateCounts = async () => {
+      const assessmentCount = await fetchAssessmentCount();
+      const userCount = await fetchUserCount();
+      setDynamicAssessmentCount(assessmentCount);
+      setDynamicUserCount(userCount);
       setDynamicMemberStats(calculateMemberStats());
     };
 
-    updateCount();
+    updateCounts();
 
     // Listen for assessment changes
-    const handleAssessmentChange = () => {
-      updateCount();
+    const handleAssessmentChange = async () => {
+      const count = await fetchAssessmentCount();
+      setDynamicAssessmentCount(count);
     };
 
     // Listen for invite changes
@@ -109,32 +121,41 @@ export function DashboardLayout({
       setDynamicMemberStats(calculateMemberStats());
     };
 
+    // Listen for user changes
+    const handleUserChange = async () => {
+      const count = await fetchUserCount();
+      setDynamicUserCount(count);
+    };
+
     window.addEventListener('assessmentSaved', handleAssessmentChange);
     window.addEventListener('assessmentCompleted', handleAssessmentChange);
     window.addEventListener('storage', handleAssessmentChange);
     window.addEventListener('inviteChange', handleInviteChange);
+    window.addEventListener('userChange', handleUserChange);
 
     return () => {
       window.removeEventListener('assessmentSaved', handleAssessmentChange);
       window.removeEventListener('assessmentCompleted', handleAssessmentChange);
       window.removeEventListener('storage', handleAssessmentChange);
       window.removeEventListener('inviteChange', handleInviteChange);
+      window.removeEventListener('userChange', handleUserChange);
     };
   }, []);
 
   const navigationItems = [
-    { 
-      id: 'assessments', 
-      label: 'Assessments', 
-      icon: FileText, 
+    {
+      id: 'assessments',
+      label: 'Assessments',
+      icon: FileText,
       permission: 'VIEW_ORGANISATION' as const,
       count: dynamicAssessmentCount
     },
-    { 
-      id: 'team', 
-      label: 'Team', 
-      icon: Users, 
-      permission: 'VIEW_MEMBERS' as const
+    {
+      id: 'team',
+      label: 'Team',
+      icon: Users,
+      permission: 'VIEW_MEMBERS' as const,
+      count: dynamicUserCount
     },
     { 
       id: 'pdfs', 
