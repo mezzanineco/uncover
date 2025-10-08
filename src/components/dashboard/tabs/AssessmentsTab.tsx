@@ -975,14 +975,37 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
   const canDeleteAssessment = hasPermission(member.role, 'DELETE_ASSESSMENT');
 
   const getValidNewInvites = () => {
-    return newInvites.filter(invite =>
-      invite.name.trim() &&
-      invite.email.trim() &&
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(invite.email)
-    );
+    return newInvites.filter(invite => {
+      if (!invite.name.trim() || !invite.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(invite.email)) {
+        return false;
+      }
+
+      // If managing an assessment, exclude emails that are already invited
+      if (managingAssessment) {
+        const alreadyInvited = assessmentParticipants.some(
+          participant => participant.email.toLowerCase() === invite.email.toLowerCase()
+        );
+        return !alreadyInvited;
+      }
+
+      return true;
+    });
   };
 
-  const activeTeamMembers = teamMembers.filter(m => m.status === 'active');
+  // Filter out team members who are already invited to the assessment being managed
+  const activeTeamMembers = teamMembers.filter(m => {
+    if (m.status !== 'active') return false;
+
+    // If managing an assessment, exclude members who are already invited
+    if (managingAssessment) {
+      const alreadyInvited = assessmentParticipants.some(
+        participant => participant.email.toLowerCase() === m.email.toLowerCase()
+      );
+      return !alreadyInvited;
+    }
+
+    return true;
+  });
   const totalParticipants = selectedMembers.length + getValidNewInvites().length;
 
   const handleNewInviteChange = (index: number, field: 'name' | 'email' | 'role', value: string) => {
@@ -1584,7 +1607,12 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
               {activeTeamMembers.length > 0 && (
                 <div className="border border-gray-200 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-4">
-                    <h4 className="font-medium text-gray-900">Add Existing Team Members</h4>
+                    <div>
+                      <h4 className="font-medium text-gray-900">Add Existing Team Members</h4>
+                      {managingAssessment && (
+                        <p className="text-xs text-gray-500 mt-1">Already invited members are hidden</p>
+                      )}
+                    </div>
                     <div className="flex items-center space-x-2">
                       <span className="text-sm text-gray-500">
                         {selectedMembers.length} of {activeTeamMembers.length} selected
@@ -1663,41 +1691,54 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
                   </div>
 
                   {/* Invite rows */}
-                  {newInvites.map((invite, index) => (
-                    <div key={index} className="grid grid-cols-12 gap-2 items-center">
-                      <input
-                        type="text"
-                        value={invite.name}
-                        onChange={(e) => handleNewInviteChange(index, 'name', e.target.value)}
-                        placeholder="Full name"
-                        className="col-span-4 px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                      <input
-                        type="email"
-                        value={invite.email}
-                        onChange={(e) => handleNewInviteChange(index, 'email', e.target.value)}
-                        placeholder="email@example.com"
-                        className="col-span-5 px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                      <select
-                        value={invite.role}
-                        onChange={(e) => handleNewInviteChange(index, 'role', e.target.value as 'user_admin' | 'participant')}
-                        className="col-span-2 px-2 py-2 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="participant">Participant</option>
-                        <option value="user_admin">Admin</option>
-                      </select>
-                      {newInvites.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeInviteRow(index)}
-                          className="col-span-1 text-gray-400 hover:text-red-600 flex items-center justify-center"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                  {newInvites.map((invite, index) => {
+                    const isAlreadyInvited = managingAssessment && invite.email.trim() && assessmentParticipants.some(
+                      participant => participant.email.toLowerCase() === invite.email.toLowerCase()
+                    );
+
+                    return (
+                      <div key={index}>
+                        <div className="grid grid-cols-12 gap-2 items-center">
+                          <input
+                            type="text"
+                            value={invite.name}
+                            onChange={(e) => handleNewInviteChange(index, 'name', e.target.value)}
+                            placeholder="Full name"
+                            className="col-span-4 px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                          <input
+                            type="email"
+                            value={invite.email}
+                            onChange={(e) => handleNewInviteChange(index, 'email', e.target.value)}
+                            placeholder="email@example.com"
+                            className={`col-span-5 px-3 py-2 text-sm border rounded focus:ring-2 focus:ring-blue-500 ${
+                              isAlreadyInvited ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                            }`}
+                          />
+                          <select
+                            value={invite.role}
+                            onChange={(e) => handleNewInviteChange(index, 'role', e.target.value as 'user_admin' | 'participant')}
+                            className="col-span-2 px-2 py-2 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="participant">Participant</option>
+                            <option value="user_admin">Admin</option>
+                          </select>
+                          {newInvites.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeInviteRow(index)}
+                              className="col-span-1 text-gray-400 hover:text-red-600 flex items-center justify-center"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                        {isAlreadyInvited && (
+                          <p className="text-xs text-red-600 mt-1 ml-1">This email is already invited to this assessment</p>
+                        )}
+                      </div>
+                    );
+                  })}
 
                   {/* Preview valid invites */}
                   {getValidNewInvites().length > 0 && (
