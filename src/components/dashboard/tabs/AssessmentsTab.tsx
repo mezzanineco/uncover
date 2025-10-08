@@ -670,22 +670,20 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
         }
       };
 
-      // Update in database if user is authenticated
-      if (user) {
-        try {
-          await assessmentService.updateAssessment(managingAssessment.id, {
-            name: updatedAssessment.name,
-            description: updatedAssessment.description,
-            require_consent: updatedAssessment.requireConsent,
-            allow_anonymous: updatedAssessment.allowAnonymous
-          });
-        } catch (error) {
-          console.error('Error updating assessment in database:', error);
-        }
+      // Update in database
+      try {
+        await assessmentService.updateAssessment(managingAssessment.id, {
+          name: updatedAssessment.name,
+          description: updatedAssessment.description,
+          require_consent: updatedAssessment.requireConsent,
+          allow_anonymous: updatedAssessment.allowAnonymous
+        });
+      } catch (error) {
+        console.error('Error updating assessment in database:', error);
       }
 
       // Save selected team members as invites to database
-      if (user && selectedMembers.length > 0) {
+      if (selectedMembers.length > 0) {
         try {
           for (const memberId of selectedMembers) {
             const member = teamMembers.find(m => m.id === memberId);
@@ -695,7 +693,7 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
                 organisationId: organisation.id,
                 assessmentId: managingAssessment.id,
                 role: memberRoles[memberId] || 'participant',
-                invitedBy: user.id,
+                invitedBy: user?.id || '550e8400-e29b-41d4-a716-446655440001',
                 expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
               });
             }
@@ -727,22 +725,20 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
           token: `token-${Date.now()}`
         }));
 
-        // Save invites to database if user is authenticated
-        if (user) {
-          try {
-            for (const email of emails) {
-              await inviteService.createInvite({
-                email,
-                organisationId: organisation.id,
-                assessmentId: managingAssessment.id,
-                role: 'participant',
-                invitedBy: user.id,
-                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-              });
-            }
-          } catch (error) {
-            console.error('Error saving invites to database:', error);
+        // Save invites to database
+        try {
+          for (const email of emails) {
+            await inviteService.createInvite({
+              email,
+              organisationId: organisation.id,
+              assessmentId: managingAssessment.id,
+              role: newInviteRole,
+              invitedBy: user?.id || '550e8400-e29b-41d4-a716-446655440001',
+              expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+            });
           }
+        } catch (error) {
+          console.error('Error saving invites to database:', error);
         }
 
         // Reload participants to show newly added invites
