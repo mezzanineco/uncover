@@ -45,7 +45,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Get Resend API key from environment
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     
     if (!resendApiKey) {
@@ -63,7 +62,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Build email content based on invite type
     const subject = inviteType === 'assessment'
       ? `You're invited to complete "${assessmentName}" by ${organizationName}`
       : `You're invited to join ${organizationName}`;
@@ -84,7 +82,6 @@ Deno.serve(async (req: Request) => {
       inviteUrl,
     });
 
-    // Send email via Resend
     const emailResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -92,7 +89,7 @@ Deno.serve(async (req: Request) => {
         'Authorization': `Bearer ${resendApiKey}`,
       },
       body: JSON.stringify({
-        from: 'Archetype Finder <onboarding@resend.dev>',
+        from: 'Archetype Finder <noreply@archetypes.consciousbrands.co>',
         to: [email],
         subject,
         html: htmlContent,
@@ -170,14 +167,11 @@ function buildEmailHtml(params: {
     <tr>
       <td align="center">
         <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-          <!-- Header -->
           <tr>
             <td style="padding: 40px 40px 20px; text-align: center; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 12px 12px 0 0;">
               <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">You're Invited! 🎯</h1>
             </td>
           </tr>
-          
-          <!-- Body -->
           <tr>
             <td style="padding: 40px;">
               <p style="color: #374151; font-size: 16px; line-height: 24px; margin: 0 0 20px;">
@@ -192,8 +186,6 @@ function buildEmailHtml(params: {
               <p style="color: #374151; font-size: 16px; line-height: 24px; margin: 0 0 30px;">
                 Discover your brand archetype and unlock insights about your unique personality and strengths. The assessment takes about 10-15 minutes to complete.
               </p>
-              
-              <!-- CTA Button -->
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="center" style="padding: 20px 0;">
@@ -203,14 +195,11 @@ function buildEmailHtml(params: {
                   </td>
                 </tr>
               </table>
-              
               <p style="color: #6b7280; font-size: 14px; line-height: 20px; margin: 24px 0 0; padding-top: 24px; border-top: 1px solid #e5e7eb;">
                 This invitation will expire in 7 days. If you have any questions, please contact the person who invited you.
               </p>
             </td>
           </tr>
-          
-          <!-- Footer -->
           <tr>
             <td style="padding: 20px 40px; background-color: #f9fafb; border-radius: 0 0 12px 12px;">
               <p style="color: #9ca3af; font-size: 12px; line-height: 18px; margin: 0; text-align: center;">
