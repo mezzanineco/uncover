@@ -534,7 +534,9 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
 
   const loadAssessmentParticipants = async (assessmentId: string) => {
     try {
+      console.log('Loading participants for assessment:', assessmentId);
       const invites = await inviteService.getInvitesByAssessment(assessmentId);
+      console.log('Found invites:', invites);
 
       const participantsWithDetails = await Promise.all(invites.map(async (invite: any) => {
         let userName = invite.email.split('@')[0];
@@ -573,6 +575,7 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
         };
       }));
 
+      console.log('Participants with details:', participantsWithDetails);
       setAssessmentParticipants(participantsWithDetails);
     } catch (error) {
       console.error('Error loading assessment participants:', error);
