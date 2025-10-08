@@ -145,6 +145,7 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
               organisationId: assessment.organisation_id,
               templateId: assessment.template_id,
               status: assessment.status,
+              assessmentType: assessment.assessment_type || 'solo',
               createdBy: assessment.created_by,
               createdAt: new Date(assessment.created_at),
               updatedAt: new Date(assessment.updated_at),
@@ -162,6 +163,7 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
               organisationId: assessment.organisation_id,
               templateId: assessment.template_id,
               status: assessment.status,
+              assessmentType: assessment.assessment_type || 'solo',
               createdBy: assessment.created_by,
               createdAt: new Date(assessment.created_at),
               updatedAt: new Date(assessment.updated_at),
@@ -1113,7 +1115,8 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center space-x-2">
-                      {(assessment.status === 'in_progress' || (assessment.status === 'draft' && assessment.questionsAnswered > 0)) && (
+                      {/* Show Continue button for solo assessments in progress */}
+                      {assessment.assessmentType === 'solo' && (assessment.status === 'in_progress' || (assessment.status === 'draft' && assessment.questionsAnswered > 0)) && (
                         <Button
                           size="sm"
                           onClick={() => handleContinueAssessment(assessment.id)}
@@ -1122,19 +1125,22 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
                           Continue
                         </Button>
                       )}
-                      {assessment.status === 'active' && (
+                      {/* Show Manage button for team assessments */}
+                      {assessment.assessmentType === 'team' && (
                         <Button variant="outline" size="sm">
                           <Users className="w-4 h-4 mr-1" />
                           <span onClick={() => handleManageAssessment(assessment)}>Manage</span>
                         </Button>
                       )}
+                      {/* Show View Results for completed assessments */}
                       {assessment.status === 'completed' && (
                         <Button variant="outline" size="sm">
                           <BarChart3 className="w-4 h-4 mr-1" />
                           <span onClick={() => handleViewResults(assessment)}>View Results</span>
                         </Button>
                       )}
-                      {assessment.status === 'draft' && !assessment.questionsAnswered && (
+                      {/* Show Launch button for solo assessments not started */}
+                      {assessment.assessmentType === 'solo' && assessment.status === 'draft' && !assessment.questionsAnswered && (
                         <Button
                           size="sm"
                           onClick={() => handleContinueAssessment(assessment.id)}
