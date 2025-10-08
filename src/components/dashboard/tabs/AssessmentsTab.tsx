@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { assessmentService, inviteService, responseService } from '../../../services/database';
+import { assessmentService, inviteService, responseService, userService } from '../../../services/database';
 import { 
   Plus, 
   Play, 
@@ -527,13 +527,13 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
       showLiveResults: true
     });
     
-    // Load current participants/invites for this assessment
-    // In a real app, this would fetch from the backend
+    // Reset invite form fields
     setSelectedMembers([]);
     setMemberRoles({});
     setNewInviteEmails('');
     setNewInviteRole('participant');
-    
+    setNewInvites([{ name: '', email: '', role: 'participant' }]);
+
     setShowManageModal(true);
   };
 
@@ -663,6 +663,7 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
     if (!managingAssessment || !teamWorkshopForm.name.trim()) return;
 
     try {
+      const validNewInvites = getValidNewInvites();
       const updatedAssessment: Assessment = {
         ...managingAssessment,
         name: teamWorkshopForm.name,
@@ -671,7 +672,7 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
         updatedAt: new Date(),
         stats: {
           ...managingAssessment.stats,
-          totalInvited: managingAssessment.stats.totalInvited + selectedMembers.length + (newInviteEmails ? newInviteEmails.split(',').filter(e => e.trim()).length : 0)
+          totalInvited: managingAssessment.stats.totalInvited + selectedMembers.length + validNewInvites.length
         }
       };
 
@@ -714,73 +715,28 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
       // Reload participants to show newly added invites
       await loadAssessmentParticipants(managingAssessment.id);
 
-      // Handle new email invites
-      if (newInviteEmails.trim()) {
-        const emails = newInviteEmails.split(',').map(e => e.trim()).filter(e => e);
-        const newInvites = emails.map(email => ({
-          id: `invite-${Date.now()}-${Math.random()}`,
-          email,
-          organisationId: organisation.id,
-          assessmentId: managingAssessment.id,
-          role: newInviteRole,
-          status: 'pending' as const,
-          invitedBy: 'current-user',
-          invitedAt: new Date(),
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-          token: `token-${Date.now()}`
-        }));
-
+      // Handle new invites from the structured form
+      if (validNewInvites.length > 0) {
         // Save invites to database
         try {
-          for (const email of emails) {
+          for (const invite of validNewInvites) {
             await inviteService.createInvite({
-              email,
+              email: invite.email,
               organisationId: organisation.id,
               assessmentId: managingAssessment.id,
-              role: newInviteRole,
+              role: invite.role,
               invitedBy: user?.id || '550e8400-e29b-41d4-a716-446655440001',
               expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
             });
           }
+
+          console.log(`Successfully created ${validNewInvites.length} new invites`);
         } catch (error) {
           console.error('Error saving invites to database:', error);
         }
 
         // Reload participants to show newly added invites
         await loadAssessmentParticipants(managingAssessment.id);
-
-        // Add to pending invites
-        try {
-          const existingInvites = JSON.parse(localStorage.getItem('pendingInvites') || '[]');
-          localStorage.setItem('pendingInvites', JSON.stringify([...existingInvites, ...newInvites]));
-          window.dispatchEvent(new CustomEvent('inviteChange'));
-        } catch (error) {
-          console.error('Error saving invites:', error);
-        }
-        
-        // Save new invites to localStorage for this assessment
-        if (newInviteEmails.trim()) {
-          const emails = newInviteEmails
-            .split(',')
-            .map(email => email.trim())
-            .filter(email => email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
-          
-          const newInvites = emails.map(email => ({
-            id: `invite-${Date.now()}-${Math.random()}`,
-            email,
-            assessmentId: managingAssessment.id,
-            status: 'pending' as const,
-            invitedAt: new Date(),
-            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
-          }));
-          
-          const existingInvites = pendingAssessmentInvites;
-          const allInvites = [...existingInvites, ...newInvites];
-          setPendingAssessmentInvites(allInvites);
-          
-          // Save to localStorage
-          localStorage.setItem(`assessmentInvites_${managingAssessment.id}`, JSON.stringify(allInvites));
-        }
       }
 
       // Update localStorage if it's a user-created assessment
@@ -806,6 +762,7 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
       setMemberRoles({});
       setNewInviteEmails('');
       setNewInviteRole('participant');
+      setNewInvites([{ name: '', email: '', role: 'participant' }]);
       setShowManageModal(false);
       setManagingAssessment(null);
       
