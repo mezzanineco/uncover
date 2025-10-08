@@ -678,6 +678,9 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
       // Reload assessments from database
       await loadAssessments();
 
+      // Reload participants to show newly added invites
+      await loadAssessmentParticipants(managingAssessment.id);
+
       // Handle new email invites
       if (newInviteEmails.trim()) {
         const emails = newInviteEmails.split(',').map(e => e.trim()).filter(e => e);
@@ -711,6 +714,9 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
             console.error('Error saving invites to database:', error);
           }
         }
+
+        // Reload participants to show newly added invites
+        await loadAssessmentParticipants(managingAssessment.id);
 
         // Add to pending invites
         try {
