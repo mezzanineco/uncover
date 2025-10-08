@@ -536,17 +536,44 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
     try {
       const invites = await inviteService.getInvitesByAssessment(assessmentId);
 
-      const participants = invites.map((invite: any) => ({
-        id: invite.id,
-        name: invite.email.split('@')[0],
-        email: invite.email,
-        status: invite.status || 'invited',
-        invitedAt: new Date(invite.created_at),
-        acceptedAt: invite.accepted_at ? new Date(invite.accepted_at) : undefined,
-        progress: 0
+      const participantsWithDetails = await Promise.all(invites.map(async (invite: any) => {
+        let userName = invite.email.split('@')[0];
+        let userStatus = invite.status || 'invited';
+        let progress = 0;
+
+        try {
+          const user = await userService.getUserByEmail(invite.email);
+          if (user) {
+            userName = user.name || userName;
+
+            const responses = await responseService.getResponsesByAssessment(assessmentId, user.id);
+            const totalQuestions = 20;
+            progress = Math.round((responses.length / totalQuestions) * 100);
+
+            if (progress > 0 && progress < 100) {
+              userStatus = 'in_progress';
+            } else if (progress === 100) {
+              userStatus = 'completed';
+            } else if (userStatus === 'accepted') {
+              userStatus = 'accepted';
+            }
+          }
+        } catch (error) {
+          console.log('Could not fetch user details for', invite.email);
+        }
+
+        return {
+          id: invite.id,
+          name: userName,
+          email: invite.email,
+          status: userStatus,
+          invitedAt: new Date(invite.created_at),
+          acceptedAt: invite.accepted_at ? new Date(invite.accepted_at) : undefined,
+          progress
+        };
       }));
 
-      setAssessmentParticipants(participants);
+      setAssessmentParticipants(participantsWithDetails);
     } catch (error) {
       console.error('Error loading assessment participants:', error);
       setAssessmentParticipants([]);
