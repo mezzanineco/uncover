@@ -157,6 +157,16 @@ function AppContent() {
       setCurrentState('assessment');
     };
 
+    const handleStartSoloAssessmentWithId = (event: CustomEvent) => {
+      const { assessmentId, fromDashboard } = event.detail;
+      console.log('Starting solo assessment with ID:', assessmentId);
+      setIsFromDashboard(fromDashboard || false);
+      setResponses([]);
+      setCurrentQuestionIndex(0);
+      setCurrentAssessmentId(assessmentId);
+      setCurrentState('assessment');
+    };
+
     const handleContinueAssessment = (event: CustomEvent) => {
       const { assessmentId } = event.detail;
       console.log('Continuing assessment:', assessmentId);
@@ -197,10 +207,12 @@ function AppContent() {
     
     // Register event listeners
     window.addEventListener('startSoloAssessment', handleStartSoloAssessment as EventListener);
+    window.addEventListener('startSoloAssessmentWithId', handleStartSoloAssessmentWithId as EventListener);
     window.addEventListener('continueAssessment', handleContinueAssessment as EventListener);
-    
+
     return () => {
       window.removeEventListener('startSoloAssessment', handleStartSoloAssessment as EventListener);
+      window.removeEventListener('startSoloAssessmentWithId', handleStartSoloAssessmentWithId as EventListener);
       window.removeEventListener('continueAssessment', handleContinueAssessment as EventListener);
     };
   }, []);

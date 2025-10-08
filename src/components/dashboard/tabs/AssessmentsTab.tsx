@@ -203,7 +203,7 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
       loadAssessments();
     };
 
-    const handleSoloAssessmentStart = async () => {
+    const handleSoloAssessmentStart = async (event: CustomEvent) => {
       // Create a new solo assessment when user starts one
       const soloAssessment: Assessment = {
         id: `solo-assess-${Date.now()}`,
@@ -240,6 +240,16 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
 
           // Use database ID
           soloAssessment.id = dbAssessment.id;
+
+          // Dispatch event with the assessment ID so App.tsx can track it
+          window.dispatchEvent(new CustomEvent('startSoloAssessmentWithId', {
+            detail: {
+              assessmentId: dbAssessment.id,
+              fromDashboard: event.detail?.fromDashboard || false
+            }
+          }));
+
+          return;
         } catch (error) {
           console.error('Error saving solo assessment to database:', error);
         }
@@ -1019,7 +1029,10 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
                         </Button>
                       )}
                       {assessment.status === 'draft' && !assessment.questionsAnswered && (
-                        <Button size="sm">
+                        <Button
+                          size="sm"
+                          onClick={() => handleContinueAssessment(assessment.id)}
+                        >
                           <Play className="w-4 h-4 mr-1" />
                           Launch
                         </Button>
