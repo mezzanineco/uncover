@@ -567,7 +567,7 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
           name: userName,
           email: invite.email,
           status: userStatus,
-          invitedAt: new Date(invite.created_at),
+          invitedAt: new Date(invite.invited_at),
           acceptedAt: invite.accepted_at ? new Date(invite.accepted_at) : undefined,
           progress
         };

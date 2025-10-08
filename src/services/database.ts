@@ -482,9 +482,8 @@ export const inviteService = {
       .from('invites')
       .select('*')
       .eq('assessment_id', assessmentId)
-      .eq('status', 'pending')
       .order('invited_at', { ascending: false })
-    
+
     if (error) throw error
     return data
   },
