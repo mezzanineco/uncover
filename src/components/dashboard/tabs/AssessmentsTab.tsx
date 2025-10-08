@@ -1011,6 +1011,14 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
   const canEditAssessment = hasPermission(member.role, 'EDIT_ASSESSMENT');
   const canDeleteAssessment = hasPermission(member.role, 'DELETE_ASSESSMENT');
 
+  const getValidNewInvites = () => {
+    return newInvites.filter(invite =>
+      invite.name.trim() &&
+      invite.email.trim() &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(invite.email)
+    );
+  };
+
   const activeTeamMembers = teamMembers.filter(m => m.status === 'active');
   const totalParticipants = selectedMembers.length + getValidNewInvites().length;
 
@@ -1031,14 +1039,6 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
     if (newInvites.length > 1) {
       setNewInvites(newInvites.filter((_, i) => i !== index));
     }
-  };
-
-  const getValidNewInvites = () => {
-    return newInvites.filter(invite =>
-      invite.name.trim() &&
-      invite.email.trim() &&
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(invite.email)
-    );
   };
 
   const parseNewInviteEmails = () => {
