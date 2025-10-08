@@ -46,22 +46,26 @@ export function TeamTab({ organisation, member }: TeamTabProps) {
     role: 'participant' as 'user_admin' | 'participant'
   });
 
-  // Load pending invites from localStorage on component mount
+  // Load pending invites from database on component mount
   useEffect(() => {
-    const loadStoredInvites = () => {
+    const loadInvites = async () => {
       try {
-        const storedInvites = localStorage.getItem('pendingInvites');
-        if (storedInvites) {
-          const parsedInvites = JSON.parse(storedInvites);
-          console.log('Loading stored invites:', parsedInvites);
-          setPendingInvites(parsedInvites.map((invite: any) => ({
-            ...invite,
-            invitedAt: new Date(invite.invitedAt),
-            expiresAt: new Date(invite.expiresAt)
-          })));
-        }
+        const invites = await inviteService.getInvitesByOrganisation(organisation.id);
+        const formattedInvites: Invite[] = invites.map(invite => ({
+          id: invite.id,
+          email: invite.email,
+          organisationId: invite.organisation_id,
+          assessmentId: invite.assessment_id,
+          role: invite.role,
+          status: invite.status,
+          invitedBy: invite.invited_by,
+          invitedAt: new Date(invite.invited_at),
+          expiresAt: new Date(invite.expires_at),
+          token: invite.token
+        }));
+        setPendingInvites(formattedInvites);
       } catch (error) {
-        console.error('Error loading stored invites:', error);
+        console.error('Error loading invites:', error);
       }
     };
 
@@ -82,9 +86,9 @@ export function TeamTab({ organisation, member }: TeamTabProps) {
       }
     };
 
-    loadStoredInvites();
+    loadInvites();
     loadStoredMembers();
-  }, []);
+  }, [organisation.id]);
 
   // Save team members to localStorage whenever they change
   useEffect(() => {
@@ -98,19 +102,6 @@ export function TeamTab({ organisation, member }: TeamTabProps) {
     }
   }, [teamMembers]);
 
-  // Save pending invites to localStorage whenever they change
-  useEffect(() => {
-    try {
-      if (pendingInvites.length > 0) {
-        localStorage.setItem('pendingInvites', JSON.stringify(pendingInvites));
-        console.log('Saved pending invites to localStorage:', pendingInvites);
-      } else {
-        localStorage.removeItem('pendingInvites');
-      }
-    } catch (error) {
-      console.error('Error saving invites to localStorage:', error);
-    }
-  }, [pendingInvites]);
 
   // Listen for invite acceptance (simulated)
   useEffect(() => {
@@ -216,23 +207,6 @@ export function TeamTab({ organisation, member }: TeamTabProps) {
     }
   };
 
-  // Save pending invites to localStorage whenever they change (updated logic)
-  useEffect(() => {
-    try {
-      if (pendingInvites.length > 0) {
-        localStorage.setItem('pendingInvites', JSON.stringify(pendingInvites));
-        console.log('Saved pending invites to localStorage:', pendingInvites);
-      } else {
-        // Only remove if we explicitly have an empty array (not initial state)
-        const stored = localStorage.getItem('pendingInvites');
-        if (stored) {
-          localStorage.removeItem('pendingInvites');
-        }
-      }
-    } catch (error) {
-      console.error('Error saving invites to localStorage:', error);
-    }
-  }, [pendingInvites]);
 
 
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -277,7 +251,7 @@ export function TeamTab({ organisation, member }: TeamTabProps) {
     }
   };
 
-  const handleSendInvites = () => {
+  const handleSendInvites = async () => {
     const emails = inviteForm.emails
       .split(',')
       .map(email => email.trim())
@@ -285,31 +259,55 @@ export function TeamTab({ organisation, member }: TeamTabProps) {
 
     if (emails.length === 0) return;
 
-    const newInvites: Invite[] = emails.map(email => ({
-      id: `invite-${Date.now()}-${Math.random()}`,
-      email,
-      organisationId: organisation.id,
-      role: inviteForm.role,
-      status: 'pending',
-      invitedBy: 'current-user',
-      invitedAt: new Date(),
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-      token: `token-${Date.now()}`
-    }));
+    try {
+      const invitePromises = emails.map(email =>
+        inviteService.createInvite({
+          email,
+          organisationId: organisation.id,
+          role: inviteForm.role,
+          invitedBy: member.userId,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+        })
+      );
 
-    setPendingInvites(prev => [...prev, ...newInvites]);
-    setInviteForm({ emails: '', role: 'participant', message: '' });
-    setShowInviteModal(false);
-    
-    // Dispatch event to update header stats
-    window.dispatchEvent(new CustomEvent('inviteChange'));
+      const createdInvites = await Promise.all(invitePromises);
+
+      const formattedInvites: Invite[] = createdInvites.map(invite => ({
+        id: invite.id,
+        email: invite.email,
+        organisationId: invite.organisation_id,
+        assessmentId: invite.assessment_id,
+        role: invite.role,
+        status: invite.status,
+        invitedBy: invite.invited_by,
+        invitedAt: new Date(invite.invited_at),
+        expiresAt: new Date(invite.expires_at),
+        token: invite.token
+      }));
+
+      setPendingInvites(prev => [...prev, ...formattedInvites]);
+      setInviteForm({ emails: '', role: 'participant', message: '' });
+      setShowInviteModal(false);
+
+      window.dispatchEvent(new CustomEvent('inviteChange'));
+      alert('Invitations sent successfully!');
+    } catch (error) {
+      console.error('Error sending invites:', error);
+      alert('Failed to send invitations. Please try again.');
+    }
   };
 
-  const handleRevokeInvite = (inviteId: string) => {
-    setPendingInvites(prev => prev.filter(invite => invite.id !== inviteId));
-    
-    // Dispatch event to update header stats
-    window.dispatchEvent(new CustomEvent('inviteChange'));
+  const handleRevokeInvite = async (inviteId: string) => {
+    if (!confirm('Are you sure you want to revoke this invitation?')) return;
+
+    try {
+      await inviteService.deleteInvite(inviteId);
+      setPendingInvites(prev => prev.filter(invite => invite.id !== inviteId));
+      window.dispatchEvent(new CustomEvent('inviteChange'));
+    } catch (error) {
+      console.error('Error revoking invite:', error);
+      alert('Failed to revoke invitation. Please try again.');
+    }
   };
 
   const handleResendInvite = async (inviteId: string) => {
