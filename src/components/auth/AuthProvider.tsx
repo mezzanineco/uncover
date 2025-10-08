@@ -122,7 +122,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const loadDemoUserData = async () => {
     // Keep existing demo functionality for development
     const mockUser: User = {
-      id: '550e8400-e29b-41d4-a716-446655440002',
+      id: '550e8400-e29b-41d4-a716-446655440001',
       email: 'demo@example.com',
       name: 'Demo User',
       username: 'demo',
@@ -133,11 +133,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
 
     const mockOrganisation: Organisation = {
-      id: '550e8400-e29b-41d4-a716-446655440000',
-      name: 'Demo Corp',
+      id: '550e8400-e29b-41d4-a716-446655440010',
+      name: 'Demo Corporation',
       slug: 'demo-corp',
       createdAt: new Date('2024-01-01'),
-      createdBy: '550e8400-e29b-41d4-a716-446655440002',
+      createdBy: '550e8400-e29b-41d4-a716-446655440001',
       settings: {
         allowGuestParticipants: true,
         requireConsent: true,
@@ -146,9 +146,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
 
     const mockMember: OrganisationMember = {
-      id: '550e8400-e29b-41d4-a716-446655440004',
-      userId: '550e8400-e29b-41d4-a716-446655440002',
-      organisationId: '550e8400-e29b-41d4-a716-446655440000',
+      id: '550e8400-e29b-41d4-a716-446655440020',
+      userId: '550e8400-e29b-41d4-a716-446655440001',
+      organisationId: '550e8400-e29b-41d4-a716-446655440010',
       role: 'user_admin',
       status: 'active',
       joinedAt: new Date('2024-01-01'),
@@ -302,14 +302,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const loadDemoUserByUsername = async (username?: string) => {
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
+
     if (username && (username === 'demo' || username === 'super')) {
-        const isSuper = username === 'super';
-        
+        // Use database IDs that match seed data
         const mockUser: User = {
-          id: isSuper ? '550e8400-e29b-41d4-a716-446655440003' : '550e8400-e29b-41d4-a716-446655440002',
-          email: isSuper ? 'super@example.com' : 'demo@example.com',
-          name: isSuper ? 'Super Admin' : 'Demo User',
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          email: 'demo@example.com',
+          name: 'Demo User',
           username: username,
           emailVerified: true,
           createdAt: new Date('2024-01-01'),
@@ -318,11 +317,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         };
 
         const mockOrganisation: Organisation = {
-          id: isSuper ? '550e8400-e29b-41d4-a716-446655440001' : '550e8400-e29b-41d4-a716-446655440000',
-          name: isSuper ? 'Super Corp' : 'Demo Corp',
-          slug: isSuper ? 'super-corp' : 'demo-corp',
+          id: '550e8400-e29b-41d4-a716-446655440010',
+          name: 'Demo Corporation',
+          slug: 'demo-corp',
           createdAt: new Date('2024-01-01'),
-          createdBy: isSuper ? '550e8400-e29b-41d4-a716-446655440003' : '550e8400-e29b-41d4-a716-446655440002',
+          createdBy: '550e8400-e29b-41d4-a716-446655440001',
           settings: {
             allowGuestParticipants: true,
             requireConsent: true,
@@ -331,10 +330,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         };
 
         const mockMember: OrganisationMember = {
-          id: isSuper ? '550e8400-e29b-41d4-a716-446655440005' : '550e8400-e29b-41d4-a716-446655440004',
-          userId: isSuper ? '550e8400-e29b-41d4-a716-446655440003' : '550e8400-e29b-41d4-a716-446655440002',
-          organisationId: isSuper ? '550e8400-e29b-41d4-a716-446655440001' : '550e8400-e29b-41d4-a716-446655440000',
-          role: isSuper ? 'super_admin' : 'user_admin',
+          id: '550e8400-e29b-41d4-a716-446655440020',
+          userId: '550e8400-e29b-41d4-a716-446655440001',
+          organisationId: '550e8400-e29b-41d4-a716-446655440010',
+          role: 'user_admin',
           status: 'active',
           joinedAt: new Date('2024-01-01'),
           lastActiveAt: new Date()
