@@ -1563,7 +1563,7 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
               {activeTeamMembers.length > 0 && (
                 <div className="border border-gray-200 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-4">
-                    <h4 className="font-medium text-gray-900">Add Team Members</h4>
+                    <h4 className="font-medium text-gray-900">Add Existing Team Members</h4>
                     <div className="flex items-center space-x-2">
                       <span className="text-sm text-gray-500">
                         {selectedMembers.length} of {activeTeamMembers.length} selected
@@ -1587,36 +1587,33 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
                     </div>
                   </div>
 
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                  <div className="space-y-1 max-h-48 overflow-y-auto">
                     {activeTeamMembers.map((member) => {
                       const isSelected = selectedMembers.includes(member.id);
                       return (
-                        <div key={member.id} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:bg-gray-50">
-                          <div className="flex items-center">
+                        <div key={member.id} className="flex items-center justify-between py-2 px-3 border border-gray-100 rounded hover:bg-gray-50">
+                          <div className="flex items-center flex-1 min-w-0">
                             <input
                               type="checkbox"
                               checked={isSelected}
                               onChange={() => handleMemberToggle(member.id)}
-                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0"
                             />
-                            <div className="ml-3 flex items-center">
-                              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                                <span className="text-sm font-medium text-blue-600">
+                            <div className="ml-3 flex items-center min-w-0">
+                              <div className="w-7 h-7 bg-blue-100 rounded-full flex items-center justify-center mr-2 flex-shrink-0">
+                                <span className="text-xs font-medium text-blue-600">
                                   {member.name.charAt(0)}
                                 </span>
                               </div>
-                              <div>
-                                <div className="text-sm font-medium text-gray-900">{member.name}</div>
-                                <div className="text-xs text-gray-500">{member.email}</div>
-                              </div>
+                              <div className="text-sm text-gray-900 truncate">{member.email}</div>
                             </div>
                           </div>
-                          
+
                           {isSelected && (
                             <select
                               value={memberRoles[member.id] || member.role}
                               onChange={(e) => handleMemberRoleChange(member.id, e.target.value as 'user_admin' | 'participant')}
-                              className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex-shrink-0 ml-2"
                             >
                               <option value="participant">Participant</option>
                               <option value="user_admin">Admin</option>
