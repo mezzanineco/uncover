@@ -615,9 +615,27 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
     }
   };
 
-  const handleRemoveParticipant = (participantId: string) => {
-    if (confirm('Are you sure you want to remove this participant from the assessment?')) {
+  const handleRemoveParticipant = async (participantId: string) => {
+    if (!confirm('Are you sure you want to remove this participant from the assessment?')) {
+      return;
+    }
+
+    try {
+      // Delete the invite from the database
+      await inviteService.deleteInvite(participantId);
+
+      // Remove from local state
       setAssessmentParticipants(prev => prev.filter(p => p.id !== participantId));
+
+      // Reload participants to ensure sync with database
+      if (managingAssessment) {
+        await loadAssessmentParticipants(managingAssessment.id);
+      }
+
+      console.log('Successfully removed participant');
+    } catch (error) {
+      console.error('Error removing participant:', error);
+      alert('Failed to remove participant. Please try again.');
     }
   };
 
@@ -653,15 +671,32 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
     }
   };
 
-  const handleRemovePendingInvite = (inviteId: string) => {
-    if (confirm('Are you sure you want to cancel this invitation?')) {
+  const handleRemovePendingInvite = async (inviteId: string) => {
+    if (!confirm('Are you sure you want to cancel this invitation?')) {
+      return;
+    }
+
+    try {
+      // Delete the invite from the database
+      await inviteService.deleteInvite(inviteId);
+
+      // Remove from local state
       setPendingAssessmentInvites(prev => prev.filter(i => i.id !== inviteId));
-      
+
       // Update localStorage
       if (managingAssessment) {
         const remaining = pendingAssessmentInvites.filter(i => i.id !== inviteId);
         localStorage.setItem(`assessmentInvites_${managingAssessment.id}`, JSON.stringify(remaining));
+
+        // Reload participants to ensure sync
+        await loadAssessmentParticipants(managingAssessment.id);
+        await loadPendingAssessmentInvites(managingAssessment.id);
       }
+
+      console.log('Successfully cancelled invitation');
+    } catch (error) {
+      console.error('Error cancelling invitation:', error);
+      alert('Failed to cancel invitation. Please try again.');
     }
   };
 
