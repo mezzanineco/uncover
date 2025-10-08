@@ -532,47 +532,25 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
     setShowManageModal(true);
   };
 
-  const loadAssessmentParticipants = (assessmentId: string) => {
-    // Mock data - in production this would come from API
-    const mockParticipants = [
-      {
-        id: 'p1',
-        name: 'Sarah Johnson',
-        email: 'sarah@company.com',
-        status: 'completed' as const,
-        invitedAt: new Date('2024-01-20T10:00:00Z'),
-        acceptedAt: new Date('2024-01-20T14:30:00Z'),
-        completedAt: new Date('2024-01-21T16:45:00Z'),
-        progress: 100
-      },
-      {
-        id: 'p2',
-        name: 'Mike Chen',
-        email: 'mike@company.com',
-        status: 'in_progress' as const,
-        invitedAt: new Date('2024-01-20T10:00:00Z'),
-        acceptedAt: new Date('2024-01-21T09:15:00Z'),
-        progress: 65
-      },
-      {
-        id: 'p3',
-        name: 'Emma Davis',
-        email: 'emma@company.com',
-        status: 'accepted' as const,
-        invitedAt: new Date('2024-01-20T10:00:00Z'),
-        acceptedAt: new Date('2024-01-22T11:20:00Z'),
+  const loadAssessmentParticipants = async (assessmentId: string) => {
+    try {
+      const invites = await inviteService.getInvitesByAssessment(assessmentId);
+
+      const participants = invites.map((invite: any) => ({
+        id: invite.id,
+        name: invite.email.split('@')[0],
+        email: invite.email,
+        status: invite.status || 'invited',
+        invitedAt: new Date(invite.created_at),
+        acceptedAt: invite.accepted_at ? new Date(invite.accepted_at) : undefined,
         progress: 0
-      },
-      {
-        id: 'p4',
-        name: 'John Smith',
-        email: 'john@company.com',
-        status: 'invited' as const,
-        invitedAt: new Date('2024-01-20T10:00:00Z'),
-        progress: 0
-      }
-    ];
-    setAssessmentParticipants(mockParticipants);
+      }));
+
+      setAssessmentParticipants(participants);
+    } catch (error) {
+      console.error('Error loading assessment participants:', error);
+      setAssessmentParticipants([]);
+    }
   };
 
   const loadPendingAssessmentInvites = (assessmentId: string) => {
@@ -676,10 +654,31 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
         }
       }
 
+      // Save selected team members as invites to database
+      if (user && selectedMembers.length > 0) {
+        try {
+          for (const memberId of selectedMembers) {
+            const member = teamMembers.find(m => m.id === memberId);
+            if (member) {
+              await inviteService.createInvite({
+                email: member.email,
+                organisationId: organisation.id,
+                assessmentId: managingAssessment.id,
+                role: memberRoles[memberId] || 'participant',
+                invitedBy: user.id,
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error saving team member invites to database:', error);
+        }
+      }
+
       // Reload assessments from database
       await loadAssessments();
 
-      // Handle new invites
+      // Handle new email invites
       if (newInviteEmails.trim()) {
         const emails = newInviteEmails.split(',').map(e => e.trim()).filter(e => e);
         const newInvites = emails.map(email => ({
@@ -1323,25 +1322,25 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
                   <div>
                     <h4 className="font-medium text-blue-900">Assessment Status</h4>
                     <p className="text-sm text-blue-700">
-                      {managingAssessment.stats.totalCompleted} of {managingAssessment.stats.totalInvited} participants completed
+                      {assessmentParticipants.filter(p => p.status === 'completed').length} of {assessmentParticipants.length} participants completed
                     </p>
                   </div>
                   <div className="text-right">
                     <div className="text-2xl font-bold text-blue-600">
-                      {managingAssessment.stats.totalInvited > 0 
-                        ? Math.round((managingAssessment.stats.totalCompleted / managingAssessment.stats.totalInvited) * 100)
+                      {assessmentParticipants.length > 0
+                        ? Math.round((assessmentParticipants.filter(p => p.status === 'completed').length / assessmentParticipants.length) * 100)
                         : 0}%
                     </div>
                     <div className="text-sm text-blue-700">Complete</div>
                   </div>
                 </div>
                 <div className="mt-3 w-full bg-blue-200 rounded-full h-2">
-                  <div 
+                  <div
                     className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{ 
-                      width: `${managingAssessment.stats.totalInvited > 0 
-                        ? (managingAssessment.stats.totalCompleted / managingAssessment.stats.totalInvited) * 100
-                        : 0}%` 
+                    style={{
+                      width: `${assessmentParticipants.length > 0
+                        ? (assessmentParticipants.filter(p => p.status === 'completed').length / assessmentParticipants.length) * 100
+                        : 0}%`
                     }}
                   />
                 </div>
@@ -1373,7 +1372,7 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {assessmentParticipants.map((participant) => (
+                        {assessmentParticipants.filter(p => p.status !== 'invited' && p.status !== 'pending').map((participant) => (
                           <tr key={participant.id} className="hover:bg-gray-50">
                             <td className="px-4 py-4 whitespace-nowrap">
                               <div className="flex items-center">
@@ -1434,12 +1433,12 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
               </div>
 
               {/* Pending Assessment Invites */}
-              {pendingAssessmentInvites.length > 0 && (
+              {assessmentParticipants.filter(p => p.status === 'invited' || p.status === 'pending').length > 0 && (
                 <div>
                   <h4 className="text-lg font-semibold text-gray-900 mb-4">Pending Assessment Invites</h4>
                   <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                     <div className="divide-y divide-gray-200">
-                      {pendingAssessmentInvites.map((invite) => (
+                      {assessmentParticipants.filter(p => p.status === 'invited' || p.status === 'pending').map((invite) => (
                         <div key={invite.id} className="p-4 flex items-center justify-between">
                           <div className="flex items-center">
                             <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center mr-3">
