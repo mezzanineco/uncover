@@ -1317,34 +1317,48 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
             
             <div className="space-y-8">
               {/* Current Assessment Status */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium text-blue-900">Assessment Status</h4>
-                    <p className="text-sm text-blue-700">
-                      {assessmentParticipants.filter(p => p.status === 'completed').length} of {assessmentParticipants.length} participants completed
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-blue-600">
-                      {assessmentParticipants.length > 0
-                        ? Math.round((assessmentParticipants.filter(p => p.status === 'completed').length / assessmentParticipants.length) * 100)
-                        : 0}%
+              {assessmentParticipants.length > 0 ? (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium text-blue-900">Assessment Status</h4>
+                      <p className="text-sm text-blue-700">
+                        {assessmentParticipants.filter(p => p.status === 'completed').length} of {assessmentParticipants.length} participants completed
+                      </p>
                     </div>
-                    <div className="text-sm text-blue-700">Complete</div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {Math.round((assessmentParticipants.filter(p => p.status === 'completed').length / assessmentParticipants.length) * 100)}%
+                      </div>
+                      <div className="text-sm text-blue-700">Complete</div>
+                    </div>
+                  </div>
+                  <div className="mt-3 w-full bg-blue-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{
+                        width: `${(assessmentParticipants.filter(p => p.status === 'completed').length / assessmentParticipants.length) * 100}%`
+                      }}
+                    />
                   </div>
                 </div>
-                <div className="mt-3 w-full bg-blue-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{
-                      width: `${assessmentParticipants.length > 0
-                        ? (assessmentParticipants.filter(p => p.status === 'completed').length / assessmentParticipants.length) * 100
-                        : 0}%`
-                    }}
-                  />
+              ) : (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <h4 className="font-medium text-yellow-900">No Participants Yet</h4>
+                      <p className="text-sm text-yellow-700 mt-1">
+                        This assessment doesn't have any participants. Add team members or invite people using email addresses below to get started.
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Current Participants */}
               <div>
@@ -1372,8 +1386,15 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {assessmentParticipants.filter(p => p.status !== 'invited' && p.status !== 'pending').map((participant) => (
-                          <tr key={participant.id} className="hover:bg-gray-50">
+                        {assessmentParticipants.filter(p => p.status !== 'invited' && p.status !== 'pending').length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">
+                              No active participants yet. Invited participants will appear here once they accept the invitation.
+                            </td>
+                          </tr>
+                        ) : (
+                          assessmentParticipants.filter(p => p.status !== 'invited' && p.status !== 'pending').map((participant) => (
+                            <tr key={participant.id} className="hover:bg-gray-50">
                             <td className="px-4 py-4 whitespace-nowrap">
                               <div className="flex items-center">
                                 <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
@@ -1425,7 +1446,8 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
                               </div>
                             </td>
                           </tr>
-                        ))}
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>
