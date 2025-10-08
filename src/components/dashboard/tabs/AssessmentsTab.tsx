@@ -1688,14 +1688,14 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
               </div>
 
               {/* Assessment Summary */}
-              {(totalParticipants > 0 || managingAssessment.stats.totalInvited > 0) && (
+              {(totalParticipants > 0 || assessmentParticipants.length > 0) && (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                   <div className="flex items-center">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
                     <div>
                       <h5 className="font-medium text-green-900">Assessment Summary</h5>
                       <p className="text-sm text-green-700">
-                        Current participants: {managingAssessment.stats.totalInvited}
+                        Current participants: {assessmentParticipants.length}
                         {totalParticipants > 0 && (
                           <span> • Adding: {totalParticipants} new participants</span>
                         )}
