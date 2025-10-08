@@ -63,17 +63,19 @@ export function DashboardLayout({
     }
   };
 
-  // Fetch user count from database
-  const fetchUserCount = async () => {
+  // Fetch active team member count for the organisation
+  const fetchTeamMemberCount = async () => {
     try {
       const { count, error } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true });
+        .from('organisation_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('organisation_id', organisation.id)
+        .eq('status', 'active');
 
       if (error) throw error;
       return count || 0;
     } catch (error) {
-      console.error('Error fetching user count:', error);
+      console.error('Error fetching team member count:', error);
       return 0;
     }
   };
@@ -102,9 +104,9 @@ export function DashboardLayout({
   useEffect(() => {
     const updateCounts = async () => {
       const assessmentCount = await fetchAssessmentCount();
-      const userCount = await fetchUserCount();
+      const memberCount = await fetchTeamMemberCount();
       setDynamicAssessmentCount(assessmentCount);
-      setDynamicUserCount(userCount);
+      setDynamicUserCount(memberCount);
       setDynamicMemberStats(calculateMemberStats());
     };
 
@@ -121,9 +123,9 @@ export function DashboardLayout({
       setDynamicMemberStats(calculateMemberStats());
     };
 
-    // Listen for user changes
-    const handleUserChange = async () => {
-      const count = await fetchUserCount();
+    // Listen for team member changes
+    const handleTeamMemberChange = async () => {
+      const count = await fetchTeamMemberCount();
       setDynamicUserCount(count);
     };
 
@@ -131,14 +133,14 @@ export function DashboardLayout({
     window.addEventListener('assessmentCompleted', handleAssessmentChange);
     window.addEventListener('storage', handleAssessmentChange);
     window.addEventListener('inviteChange', handleInviteChange);
-    window.addEventListener('userChange', handleUserChange);
+    window.addEventListener('teamMemberChange', handleTeamMemberChange);
 
     return () => {
       window.removeEventListener('assessmentSaved', handleAssessmentChange);
       window.removeEventListener('assessmentCompleted', handleAssessmentChange);
       window.removeEventListener('storage', handleAssessmentChange);
       window.removeEventListener('inviteChange', handleInviteChange);
-      window.removeEventListener('userChange', handleUserChange);
+      window.removeEventListener('teamMemberChange', handleTeamMemberChange);
     };
   }, []);
 
