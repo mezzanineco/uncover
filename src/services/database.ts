@@ -177,7 +177,13 @@ export const assessmentService = {
           template_id: assessmentData.templateId,
           require_consent: assessmentData.requireConsent ?? true,
           allow_anonymous: assessmentData.allowAnonymous ?? false,
-          status: 'draft'
+          status: 'draft',
+          stats: {
+            totalInvited: 0,
+            totalStarted: 0,
+            totalCompleted: 0,
+            averageCompletionTime: null
+          }
         }])
         .select()
         .single()
