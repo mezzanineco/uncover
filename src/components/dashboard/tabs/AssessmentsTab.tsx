@@ -1605,7 +1605,9 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
                                   {member.name.charAt(0)}
                                 </span>
                               </div>
-                              <div className="text-sm text-gray-900 truncate">{member.email}</div>
+                              <div className="text-sm text-gray-900 truncate">
+                                {member.name} <span className="text-gray-500">{member.email}</span>
+                              </div>
                             </div>
                           </div>
 
