@@ -60,10 +60,11 @@ export interface Assessment {
   organisationId: string;
   templateId: string;
   status: 'draft' | 'active' | 'in_progress' | 'paused' | 'completed' | 'archived';
+  assessmentType?: 'solo' | 'team';
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
-  
+
   // Participant management
   inviteLink?: string;
   roomCode?: string;

@@ -165,6 +165,7 @@ export const assessmentService = {
     templateId: string
     requireConsent?: boolean
     allowAnonymous?: boolean
+    assessmentType?: 'solo' | 'team'
   }) {
     try {
       const { data, error } = await supabase
@@ -177,6 +178,7 @@ export const assessmentService = {
           template_id: assessmentData.templateId,
           require_consent: assessmentData.requireConsent ?? true,
           allow_anonymous: assessmentData.allowAnonymous ?? false,
+          assessment_type: assessmentData.assessmentType ?? 'solo',
           status: 'draft',
           stats: {
             totalInvited: 0,

@@ -240,7 +240,8 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
             createdBy: user.id,
             templateId: soloAssessment.templateId,
             requireConsent: soloAssessment.requireConsent,
-            allowAnonymous: soloAssessment.allowAnonymous
+            allowAnonymous: soloAssessment.allowAnonymous,
+            assessmentType: 'solo'
           });
 
           // Use database ID
@@ -303,6 +304,7 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
         organisationId: organisation.id,
         templateId: 'template-1',
         status: 'in_progress',
+        assessmentType: 'solo',
         createdBy: user?.id || 'current-user',
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -324,7 +326,8 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
             createdBy: user.id,
             templateId: soloAssessment.templateId,
             requireConsent: soloAssessment.requireConsent,
-            allowAnonymous: soloAssessment.allowAnonymous
+            allowAnonymous: soloAssessment.allowAnonymous,
+            assessmentType: 'solo'
           });
 
           soloAssessment.id = dbAssessment.id;
@@ -351,9 +354,11 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
     if (!teamWorkshopForm.name.trim()) return;
 
     try {
+      const validNewInvites = getValidNewInvites();
+
       // Generate a unique room code for the assessment
       const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-      
+
       const newAssessment: Assessment = {
         id: `assess-${Date.now()}`, // Will be replaced by database ID
         name: teamWorkshopForm.name || 'Team Workshop Assessment',
@@ -362,13 +367,14 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
         organisationId: organisation.id,
         templateId: 'template-1',
         status: 'active',
+        assessmentType: 'team',
         createdBy: user?.id || 'current-user',
         createdAt: new Date(),
         updatedAt: new Date(),
         requireConsent: true,
         allowAnonymous: teamWorkshopForm.allowAnonymous,
         stats: {
-          totalInvited: selectedMembers.length + getValidNewInvites().length,
+          totalInvited: selectedMembers.length + validNewInvites.length,
           totalStarted: 0,
           totalCompleted: 0
         }
@@ -384,7 +390,8 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
             createdBy: user.id,
             templateId: newAssessment.templateId,
             requireConsent: newAssessment.requireConsent,
-            allowAnonymous: newAssessment.allowAnonymous
+            allowAnonymous: newAssessment.allowAnonymous,
+            assessmentType: 'team'
           });
           
           // Update assessment with database ID
@@ -397,47 +404,44 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
       // Reload assessments from database
       await loadAssessments();
 
-      // Handle new invites
-      const validInvites = getValidNewInvites();
-      if (validInvites.length > 0) {
-        const invitesToSave = validInvites.map(invite => ({
-          id: `invite-${Date.now()}-${Math.random()}`,
-          email: invite.email,
-          name: invite.name,
-          organisationId: organisation.id,
-          role: invite.role,
-          status: 'pending' as const,
-          invitedBy: 'current-user',
-          invitedAt: new Date(),
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-          token: `token-${Date.now()}`
-        }));
-
-        // Save invites to database if user is authenticated
-        if (user) {
-          try {
-            for (const invite of validInvites) {
+      // Save selected team members as invites to database
+      if (selectedMembers.length > 0 && user) {
+        try {
+          for (const memberId of selectedMembers) {
+            const member = teamMembers.find(m => m.id === memberId);
+            if (member) {
               await inviteService.createInvite({
-                email: invite.email,
+                email: member.email,
                 organisationId: organisation.id,
                 assessmentId: newAssessment.id,
-                role: invite.role,
+                role: memberRoles[memberId] || 'participant',
                 invitedBy: user.id,
                 expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
               });
             }
-          } catch (error) {
-            console.error('Error saving invites to database:', error);
           }
-        }
-
-        // Add to pending invites
-        try {
-          const existingInvites = JSON.parse(localStorage.getItem('pendingInvites') || '[]');
-          localStorage.setItem('pendingInvites', JSON.stringify([...existingInvites, ...invitesToSave]));
-          window.dispatchEvent(new CustomEvent('inviteChange'));
+          console.log(`Successfully invited ${selectedMembers.length} team members`);
         } catch (error) {
-          console.error('Error saving invites:', error);
+          console.error('Error saving team member invites to database:', error);
+        }
+      }
+
+      // Handle new invites from the structured form
+      if (validNewInvites.length > 0 && user) {
+        try {
+          for (const invite of validNewInvites) {
+            await inviteService.createInvite({
+              email: invite.email,
+              organisationId: organisation.id,
+              assessmentId: newAssessment.id,
+              role: invite.role,
+              invitedBy: user.id,
+              expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+            });
+          }
+          console.log(`Successfully created ${validNewInvites.length} new invites`);
+        } catch (error) {
+          console.error('Error saving invites to database:', error);
         }
       }
 
@@ -1032,6 +1036,9 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
                   Assessment
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Type
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1057,6 +1064,25 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
                         </div>
                       )}
                     </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${
+                      assessment.assessmentType === 'team'
+                        ? 'bg-purple-100 text-purple-800'
+                        : 'bg-teal-100 text-teal-800'
+                    }`}>
+                      {assessment.assessmentType === 'team' ? (
+                        <>
+                          <Users className="w-3 h-3 mr-1" />
+                          Team
+                        </>
+                      ) : (
+                        <>
+                          <User className="w-3 h-3 mr-1" />
+                          Solo
+                        </>
+                      )}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(assessment.status)}`}>
@@ -1870,53 +1896,59 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
               {/* Invite New Members */}
               <div className="border border-gray-200 rounded-lg p-4">
                 <h4 className="font-medium text-gray-900 mb-4">Invite New Members</h4>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Email Addresses
-                    </label>
-                    <textarea
-                      value={newInviteEmails}
-                      onChange={(e) => setNewInviteEmails(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      rows={2}
-                      placeholder="Enter email addresses separated by commas"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Separate multiple emails with commas
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Role for New Members
-                    </label>
-                    <select
-                      value={newInviteRole}
-                      onChange={(e) => setNewInviteRole(e.target.value as 'user_admin' | 'participant')}
-                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="participant">Participant</option>
-                      <option value="user_admin">Admin</option>
-                    </select>
+
+                <div className="space-y-2">
+                  {/* Header row */}
+                  <div className="grid grid-cols-12 gap-2 text-xs font-medium text-gray-700 px-2">
+                    <div className="col-span-4">Name</div>
+                    <div className="col-span-5">Email</div>
+                    <div className="col-span-2">Role</div>
+                    <div className="col-span-1"></div>
                   </div>
 
-                  {/* Preview new invites */}
-                  {parseNewInviteEmails().length > 0 && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <h5 className="text-sm font-medium text-blue-900 mb-2">New Invitations Preview:</h5>
-                      <div className="space-y-1">
-                        {parseNewInviteEmails().map((email, index) => (
-                          <div key={index} className="flex items-center text-sm text-blue-800">
-                            <Mail className="w-4 h-4 mr-2" />
-                            <span>{email}</span>
-                            <span className="ml-2 text-xs bg-blue-200 px-2 py-0.5 rounded">
-                              {newInviteRole === 'user_admin' ? 'Admin' : 'Participant'}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
+                  {/* Invite rows */}
+                  {newInvites.map((invite, index) => (
+                    <div key={index} className="grid grid-cols-12 gap-2 items-center">
+                      <input
+                        type="text"
+                        value={invite.name}
+                        onChange={(e) => handleNewInviteChange(index, 'name', e.target.value)}
+                        placeholder="Full name"
+                        className="col-span-4 px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                      <input
+                        type="email"
+                        value={invite.email}
+                        onChange={(e) => handleNewInviteChange(index, 'email', e.target.value)}
+                        placeholder="email@example.com"
+                        className="col-span-5 px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                      <select
+                        value={invite.role}
+                        onChange={(e) => handleNewInviteChange(index, 'role', e.target.value as 'user_admin' | 'participant')}
+                        className="col-span-2 px-2 py-2 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="participant">Participant</option>
+                        <option value="user_admin">Admin</option>
+                      </select>
+                      {newInvites.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeInviteRow(index)}
+                          className="col-span-1 text-gray-400 hover:text-red-600 flex items-center justify-center"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Preview valid invites */}
+                  {getValidNewInvites().length > 0 && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+                      <h5 className="text-xs font-medium text-blue-900 mb-2">
+                        {getValidNewInvites().length} new invitation{getValidNewInvites().length !== 1 ? 's' : ''} ready
+                      </h5>
                     </div>
                   )}
                 </div>
