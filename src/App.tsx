@@ -36,48 +36,33 @@ function AppContent() {
     setCurrentState('assessment');
   };
 
-  const handleAssessmentComplete = (result: AssessmentResult) => {
+  const handleAssessmentComplete = async (result: AssessmentResult) => {
     console.log('Assessment completed, saving result...');
-    
-    // Create completed assessment record
-    const completedAssessment: Assessment = {
-      id: currentAssessmentId || `assess-completed-${Date.now()}`,
-      name: 'My Brand Archetype Assessment',
-      description: `Assessment completed on ${new Date().toLocaleDateString()}`,
-      projectId: 'solo-project',
-      organisationId: organisation?.id || 'default-org',
-      templateId: 'template-1',
-      status: 'completed',
-      createdBy: user?.id || 'current-user',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      requireConsent: true,
-      allowAnonymous: false,
-      stats: {
-        totalInvited: 1,
-        totalStarted: 1,
-        totalCompleted: 1,
-        averageCompletionTime: 15
-      }
-    };
 
     // Clear the saved progress since assessment is complete
     if (currentAssessmentId) {
       localStorage.removeItem(`assessmentProgress_${currentAssessmentId}`);
-    }
-    
-    // Save completed assessment
-    try {
-      const existingAssessments = JSON.parse(localStorage.getItem('userAssessments') || '[]');
-      const updatedAssessments = [completedAssessment, ...existingAssessments.filter((a: any) => a.id !== completedAssessment.id)];
-      localStorage.setItem('userAssessments', JSON.stringify(updatedAssessments));
-      
-      // Dispatch event to update dashboard
-      window.dispatchEvent(new CustomEvent('assessmentCompleted', {
-        detail: { assessment: completedAssessment }
-      }));
-    } catch (error) {
-      console.error('Error saving completed assessment:', error);
+
+      // Update assessment status in database
+      if (user && organisation) {
+        try {
+          const { assessmentService } = await import('./services/database');
+          await assessmentService.updateAssessment(currentAssessmentId, {
+            status: 'completed',
+            stats: {
+              totalInvited: 1,
+              totalStarted: 1,
+              totalCompleted: 1,
+              averageCompletionTime: 15
+            }
+          });
+
+          // Dispatch event to update dashboard
+          window.dispatchEvent(new CustomEvent('assessmentCompleted'));
+        } catch (error) {
+          console.error('Error updating assessment in database:', error);
+        }
+      }
     }
 
     setAssessmentResult(result);
@@ -120,49 +105,40 @@ function AppContent() {
     setAuthMode('login');
   };
 
-  const handleBackToDashboard = () => {
+  const handleBackToDashboard = async () => {
     // Save current progress before returning to dashboard
     console.log('Saving progress and returning to dashboard...');
-    
-    if (currentState === 'assessment' && responses.length > 0) {
-      const assessmentId = currentAssessmentId || `assess-${Date.now()}`;
-      const progressAssessment: Assessment = {
-        id: assessmentId,
-        name: 'My Brand Archetype Assessment',
-        description: `Assessment in progress - ${responses.length} questions answered`,
-        projectId: 'solo-project',
-        organisationId: organisation?.id || 'default-org',
-        templateId: 'template-1',
-        status: 'in_progress',
-        createdBy: user?.id || 'current-user',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        requireConsent: true,
-        allowAnonymous: false,
-        stats: {
-          totalInvited: 1,
-          totalStarted: 1,
-          totalCompleted: 0,
-          averageCompletionTime: undefined
+
+    if (currentState === 'assessment' && responses.length > 0 && currentAssessmentId) {
+      // Update assessment status in database
+      if (user && organisation) {
+        try {
+          const { assessmentService } = await import('./services/database');
+          await assessmentService.updateAssessment(currentAssessmentId, {
+            status: 'in_progress',
+            stats: {
+              totalInvited: 1,
+              totalStarted: 1,
+              totalCompleted: 0,
+              averageCompletionTime: undefined
+            }
+          });
+
+          // Save progress to localStorage for client-side state
+          const assessmentProgress = {
+            responses: responses,
+            currentQuestionIndex: currentQuestionIndex
+          };
+          localStorage.setItem(`assessmentProgress_${currentAssessmentId}`, JSON.stringify(assessmentProgress));
+
+          // Trigger event to update dashboard
+          window.dispatchEvent(new CustomEvent('assessmentSaved'));
+        } catch (error) {
+          console.error('Error saving progress to database:', error);
         }
-      };
-      
-      // Save progress to localStorage
-      const assessmentProgress = {
-        assessment: progressAssessment,
-        responses: responses,
-        currentQuestionIndex: currentQuestionIndex
-      };
-      
-      console.log('Saving progress to localStorage:', assessmentProgress);
-      localStorage.setItem('assessmentProgress', JSON.stringify(assessmentProgress));
-      
-      // Trigger event to update dashboard
-      window.dispatchEvent(new CustomEvent('assessmentSaved', {
-        detail: { assessment: progressAssessment }
-      }));
+      }
     }
-    
+
     setCurrentState('landing');
     setIsFromDashboard(false);
     setResponses([]);

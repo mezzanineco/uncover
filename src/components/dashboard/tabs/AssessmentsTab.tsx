@@ -109,7 +109,7 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
   // Load assessments on component mount
   useEffect(() => {
     loadAssessments();
-  }, [organisation.id]);
+  }, [organisation.id, user?.id]);
 
   const loadAssessments = async () => {
     if (!organisation || !isValidUUID(organisation.id)) {
@@ -117,13 +117,13 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
       setIsLoading(false);
       return;
     }
-    
+
     try {
       setIsLoading(true);
-      
+
       // Load assessments from database
       const dbAssessments = await assessmentService.getAssessmentsByOrganisation(organisation.id);
-      
+
       // Transform database assessments to match our interface
       const transformedAssessments = dbAssessments.map((assessment: any) => ({
         id: assessment.id,
@@ -141,211 +141,17 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
         stats: assessment.stats
       }));
 
-      // Load mock assessments for demo purposes
-      const mockAssessments = [
-        {
-          id: 'assess-1',
-          name: 'Marketing Team Brand Assessment',
-          description: 'Comprehensive brand archetype assessment for the marketing team',
-          projectId: 'proj-1',
-          organisationId: organisation.id,
-          templateId: 'template-1',
-          status: 'active' as const,
-          createdBy: user?.id || 'user-1',
-          createdAt: new Date('2024-01-22T09:00:00Z'),
-          updatedAt: new Date('2024-01-22T14:30:00Z'),
-          requireConsent: true,
-          allowAnonymous: false,
-          stats: {
-            totalInvited: 8,
-            totalStarted: 6,
-            totalCompleted: 4,
-            averageCompletionTime: 15
-          }
-        },
-        {
-          id: 'assess-2',
-          name: 'Leadership Assessment',
-          description: 'Executive team archetype analysis',
-          projectId: 'proj-2',
-          organisationId: organisation.id,
-          templateId: 'template-1',
-          status: 'completed' as const,
-          createdBy: user?.id || 'user-1',
-          createdAt: new Date('2024-01-18T14:00:00Z'),
-          updatedAt: new Date('2024-01-20T16:45:00Z'),
-          requireConsent: true,
-          allowAnonymous: true,
-          stats: {
-            totalInvited: 6,
-            totalStarted: 6,
-            totalCompleted: 6,
-            averageCompletionTime: 18
-          }
-        },
-        {
-          id: 'assess-3',
-          name: 'Sales Team Evaluation',
-          description: 'Quarterly sales team assessment',
-          projectId: 'proj-3',
-          organisationId: organisation.id,
-          templateId: 'template-1',
-          status: 'draft' as const,
-          createdBy: user?.id || 'user-2',
-          createdAt: new Date('2024-01-15T11:30:00Z'),
-          updatedAt: new Date('2024-01-15T11:30:00Z'),
-          requireConsent: false,
-          allowAnonymous: true,
-          stats: {
-            totalInvited: 0,
-            totalStarted: 0,
-            totalCompleted: 0,
-            averageCompletionTime: undefined
-          }
-        }
-      ];
-
-      // Combine database and mock assessments
-      setAssessments([...transformedAssessments, ...mockAssessments]);
+      setAssessments(transformedAssessments);
     } catch (error) {
       console.error('Error loading assessments:', error);
-      // Fallback to mock data on error
-      loadMockAssessments();
+      setAssessments([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const loadMockAssessments = () => {
-    // Fallback mock data
-    const mockAssessments = [
-      {
-        id: 'assess-1',
-        name: 'Marketing Team Brand Assessment',
-        description: 'Comprehensive brand archetype assessment for the marketing team',
-        projectId: 'proj-1',
-        organisationId: organisation.id,
-        templateId: 'template-1',
-        status: 'active' as const,
-        createdBy: user?.id || 'user-1',
-        createdAt: new Date('2024-01-22T09:00:00Z'),
-        updatedAt: new Date('2024-01-22T14:30:00Z'),
-        requireConsent: true,
-        allowAnonymous: false,
-        stats: {
-          totalInvited: 8,
-          totalStarted: 6,
-          totalCompleted: 4,
-          averageCompletionTime: 15
-        }
-      }
-    ];
-    setAssessments(mockAssessments);
-  };
-
-  // Load assessments and team members on component mount
+  // Load team members and setup event listeners
   useEffect(() => {
-    const loadAssessments = () => {
-      const defaultAssessments: Assessment[] = [
-        {
-          id: 'assess-1',
-          name: 'Marketing Team Brand Assessment',
-          description: 'Comprehensive brand archetype assessment for the marketing team',
-          projectId: 'proj-1',
-          organisationId: organisation.id,
-          templateId: 'template-1',
-          status: 'active',
-          createdBy: 'user-1',
-          createdAt: new Date('2024-01-22T10:00:00Z'),
-          updatedAt: new Date('2024-01-22T14:30:00Z'),
-          requireConsent: true,
-          allowAnonymous: false,
-          stats: {
-            totalInvited: 8,
-            totalStarted: 6,
-            totalCompleted: 4,
-            averageCompletionTime: 15
-          }
-        },
-        {
-          id: 'assess-2',
-          name: 'Leadership Assessment',
-          description: 'Executive team archetype evaluation',
-          projectId: 'proj-2',
-          organisationId: organisation.id,
-          templateId: 'template-1',
-          status: 'completed',
-          createdBy: 'user-1',
-          createdAt: new Date('2024-01-18T16:00:00Z'),
-          updatedAt: new Date('2024-01-20T10:15:00Z'),
-          requireConsent: true,
-          allowAnonymous: false,
-          stats: {
-            totalInvited: 6,
-            totalStarted: 6,
-            totalCompleted: 6,
-            averageCompletionTime: 18
-          }
-        },
-        {
-          id: 'assess-3',
-          name: 'Sales Team Assessment',
-          description: 'Quarterly sales team evaluation',
-          projectId: 'proj-3',
-          organisationId: organisation.id,
-          templateId: 'template-1',
-          status: 'draft',
-          createdBy: 'user-2',
-          createdAt: new Date('2024-01-15T11:30:00Z'),
-          updatedAt: new Date('2024-01-18T13:45:00Z'),
-          requireConsent: true,
-          allowAnonymous: true,
-          stats: {
-            totalInvited: 0,
-            totalStarted: 0,
-            totalCompleted: 0
-          }
-        }
-      ];
-
-      try {
-        const storedAssessments = localStorage.getItem('userAssessments');
-        const userAssessments = storedAssessments ? JSON.parse(storedAssessments) : [];
-        
-        // Check for any saved progress assessments
-        let progressAssessments: Assessment[] = [];
-        const progressKeys = Object.keys(localStorage).filter(key => key.startsWith('assessmentProgress_'));
-        progressKeys.forEach(key => {
-          try {
-            const progress = JSON.parse(localStorage.getItem(key) || '{}');
-            if (progress.assessment) {
-              progressAssessments.push(progress.assessment);
-            }
-          } catch (error) {
-            console.error('Error parsing progress assessment:', error);
-          }
-        });
-        
-        // Also check for legacy progress format
-        const legacyProgress = localStorage.getItem('assessmentProgress');
-        if (legacyProgress) {
-          try {
-            const progress = JSON.parse(legacyProgress);
-            if (progress.assessment) {
-              progressAssessments.push(progress.assessment);
-            }
-          } catch (error) {
-            console.error('Error parsing legacy progress:', error);
-          }
-        }
-        
-        setAssessments([...userAssessments, ...progressAssessments, ...defaultAssessments]);
-      } catch (error) {
-        console.error('Error loading assessments:', error);
-        setAssessments(defaultAssessments);
-      }
-    };
-
     const loadTeamMembers = () => {
       try {
         const storedMembers = localStorage.getItem('teamMembers');
@@ -363,14 +169,13 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
       }
     };
 
-    loadAssessments();
     loadTeamMembers();
 
     const handleAssessmentChange = () => {
       loadAssessments();
     };
 
-    const handleSoloAssessmentStart = () => {
+    const handleSoloAssessmentStart = async () => {
       // Create a new solo assessment when user starts one
       const soloAssessment: Assessment = {
         id: `solo-assess-${Date.now()}`,
@@ -380,7 +185,7 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
         organisationId: organisation.id,
         templateId: 'template-1',
         status: 'in_progress',
-        createdBy: 'current-user',
+        createdBy: user?.id || 'current-user',
         createdAt: new Date(),
         updatedAt: new Date(),
         requireConsent: true,
@@ -391,18 +196,40 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
           totalCompleted: 0
         }
       };
-      
-      setAssessments(prev => [soloAssessment, ...prev]);
+
+      // Save to database if user is authenticated
+      if (user) {
+        try {
+          const dbAssessment = await assessmentService.createAssessment({
+            name: soloAssessment.name,
+            description: soloAssessment.description,
+            organisationId: organisation.id,
+            createdBy: user.id,
+            templateId: soloAssessment.templateId,
+            requireConsent: soloAssessment.requireConsent,
+            allowAnonymous: soloAssessment.allowAnonymous
+          });
+
+          // Use database ID
+          soloAssessment.id = dbAssessment.id;
+        } catch (error) {
+          console.error('Error saving solo assessment to database:', error);
+        }
+      }
+
+      // Reload assessments from database
+      await loadAssessments();
     };
+
     window.addEventListener('assessmentSaved', handleAssessmentChange);
     window.addEventListener('assessmentCompleted', handleAssessmentChange);
-    window.addEventListener('startSoloAssessment', handleSoloAssessmentStart);
+    window.addEventListener('startSoloAssessment', handleSoloAssessmentStart as EventListener);
     window.addEventListener('storage', handleAssessmentChange);
 
     return () => {
       window.removeEventListener('assessmentSaved', handleAssessmentChange);
       window.removeEventListener('assessmentCompleted', handleAssessmentChange);
-      window.removeEventListener('startSoloAssessment', handleSoloAssessmentStart);
+      window.removeEventListener('startSoloAssessment', handleSoloAssessmentStart as EventListener);
       window.removeEventListener('storage', handleAssessmentChange);
     };
   }, [organisation.id, user?.id]);
@@ -466,8 +293,8 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
         }
       }
 
-      // Add new assessment to list
-      setAssessments(prev => [newAssessment, ...prev]);
+      // Reload assessments from database
+      await loadAssessments();
 
       // Handle new invites
       if (newInviteEmails.trim()) {
@@ -564,20 +391,8 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
         }
       }
 
-      setAssessments(prev => prev.map(assessment => 
-        assessment.id === editingAssessment.id ? updatedAssessment : assessment
-      ));
-
-      // Update localStorage if it's a user-created assessment
-      try {
-        const storedAssessments = JSON.parse(localStorage.getItem('userAssessments') || '[]');
-        const updatedStored = storedAssessments.map((assessment: Assessment) =>
-          assessment.id === editingAssessment.id ? updatedAssessment : assessment
-        );
-        localStorage.setItem('userAssessments', JSON.stringify(updatedStored));
-      } catch (error) {
-        console.error('Error updating stored assessment:', error);
-      }
+      // Reload assessments from database
+      await loadAssessments();
 
       setShowEditModal(false);
       setEditingAssessment(null);
@@ -763,10 +578,8 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
         }
       }
 
-      // Update assessment in list
-      setAssessments(prev => prev.map(assessment => 
-        assessment.id === managingAssessment.id ? updatedAssessment : assessment
-      ));
+      // Reload assessments from database
+      await loadAssessments();
 
       // Handle new invites
       if (newInviteEmails.trim()) {
@@ -869,23 +682,25 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
     }
   };
 
-  const handleDeleteAssessment = (assessmentId: string) => {
+  const handleDeleteAssessment = async (assessmentId: string) => {
     if (!confirm('Are you sure you want to delete this assessment? This action cannot be undone.')) {
       return;
     }
 
-    setAssessments(prev => prev.filter(assessment => assessment.id !== assessmentId));
-
-    // Remove from localStorage if it exists
     try {
-      const storedAssessments = JSON.parse(localStorage.getItem('userAssessments') || '[]');
-      const filteredStored = storedAssessments.filter((assessment: Assessment) => assessment.id !== assessmentId);
-      localStorage.setItem('userAssessments', JSON.stringify(filteredStored));
+      // Delete from database if user is authenticated
+      if (user) {
+        await assessmentService.deleteAssessment(assessmentId);
+      }
 
-      // Also remove any progress data for this assessment
+      // Remove any progress data for this assessment
       localStorage.removeItem(`assessmentProgress_${assessmentId}`);
+
+      // Reload assessments from database
+      await loadAssessments();
     } catch (error) {
-      console.error('Error deleting stored assessment:', error);
+      console.error('Error deleting assessment:', error);
+      alert('Failed to delete assessment. Please try again.');
     }
   };
 
