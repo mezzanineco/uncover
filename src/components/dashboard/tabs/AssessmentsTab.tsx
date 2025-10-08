@@ -54,6 +54,9 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
   const [memberRoles, setMemberRoles] = useState<Record<string, 'user_admin' | 'participant'>>({});
   const [newInviteEmails, setNewInviteEmails] = useState('');
   const [newInviteRole, setNewInviteRole] = useState<'user_admin' | 'participant'>('participant');
+  const [newInvites, setNewInvites] = useState<Array<{ name: string; email: string; role: 'user_admin' | 'participant' }>>([
+    { name: '', email: '', role: 'participant' }
+  ]);
   const [editingAssessment, setEditingAssessment] = useState<Assessment | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', description: '' });
@@ -365,7 +368,7 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
         requireConsent: true,
         allowAnonymous: teamWorkshopForm.allowAnonymous,
         stats: {
-          totalInvited: selectedMembers.length + (newInviteEmails ? newInviteEmails.split(',').filter(e => e.trim()).length : 0),
+          totalInvited: selectedMembers.length + getValidNewInvites().length,
           totalStarted: 0,
           totalCompleted: 0
         }
@@ -395,13 +398,14 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
       await loadAssessments();
 
       // Handle new invites
-      if (newInviteEmails.trim()) {
-        const emails = newInviteEmails.split(',').map(e => e.trim()).filter(e => e);
-        const newInvites = emails.map(email => ({
+      const validInvites = getValidNewInvites();
+      if (validInvites.length > 0) {
+        const invitesToSave = validInvites.map(invite => ({
           id: `invite-${Date.now()}-${Math.random()}`,
-          email,
+          email: invite.email,
+          name: invite.name,
           organisationId: organisation.id,
-          role: newInviteRole,
+          role: invite.role,
           status: 'pending' as const,
           invitedBy: 'current-user',
           invitedAt: new Date(),
@@ -412,12 +416,12 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
         // Save invites to database if user is authenticated
         if (user) {
           try {
-            for (const email of emails) {
+            for (const invite of validInvites) {
               await inviteService.createInvite({
-                email,
+                email: invite.email,
                 organisationId: organisation.id,
                 assessmentId: newAssessment.id,
-                role: 'participant',
+                role: invite.role,
                 invitedBy: user.id,
                 expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
               });
@@ -430,7 +434,7 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
         // Add to pending invites
         try {
           const existingInvites = JSON.parse(localStorage.getItem('pendingInvites') || '[]');
-          localStorage.setItem('pendingInvites', JSON.stringify([...existingInvites, ...newInvites]));
+          localStorage.setItem('pendingInvites', JSON.stringify([...existingInvites, ...invitesToSave]));
           window.dispatchEvent(new CustomEvent('inviteChange'));
         } catch (error) {
           console.error('Error saving invites:', error);
@@ -449,6 +453,7 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
       setMemberRoles({});
       setNewInviteEmails('');
       setNewInviteRole('participant');
+      setNewInvites([{ name: '', email: '', role: 'participant' }]);
       setShowTeamWorkshopModal(false);
     } catch (error) {
       console.error('Error creating team workshop:', error);
@@ -1007,7 +1012,34 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
   const canDeleteAssessment = hasPermission(member.role, 'DELETE_ASSESSMENT');
 
   const activeTeamMembers = teamMembers.filter(m => m.status === 'active');
-  const totalParticipants = selectedMembers.length + (newInviteEmails ? newInviteEmails.split(',').filter(e => e.trim()).length : 0);
+  const totalParticipants = selectedMembers.length + getValidNewInvites().length;
+
+  const handleNewInviteChange = (index: number, field: 'name' | 'email' | 'role', value: string) => {
+    const updated = [...newInvites];
+    updated[index] = { ...updated[index], [field]: value };
+    setNewInvites(updated);
+
+    // Auto-add new row if this is the last row and has content
+    const isLastRow = index === newInvites.length - 1;
+    const hasContent = updated[index].name.trim() || updated[index].email.trim();
+    if (isLastRow && hasContent) {
+      setNewInvites([...updated, { name: '', email: '', role: 'participant' }]);
+    }
+  };
+
+  const removeInviteRow = (index: number) => {
+    if (newInvites.length > 1) {
+      setNewInvites(newInvites.filter((_, i) => i !== index));
+    }
+  };
+
+  const getValidNewInvites = () => {
+    return newInvites.filter(invite =>
+      invite.name.trim() &&
+      invite.email.trim() &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(invite.email)
+    );
+  };
 
   const parseNewInviteEmails = () => {
     if (!newInviteEmails.trim()) return [];
@@ -1631,53 +1663,59 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
               {/* Invite New Members */}
               <div className="border border-gray-200 rounded-lg p-4">
                 <h4 className="font-medium text-gray-900 mb-4">Invite Additional Members</h4>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Email Addresses
-                    </label>
-                    <textarea
-                      value={newInviteEmails}
-                      onChange={(e) => setNewInviteEmails(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      rows={2}
-                      placeholder="Enter email addresses separated by commas"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Separate multiple emails with commas
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Role for New Members
-                    </label>
-                    <select
-                      value={newInviteRole}
-                      onChange={(e) => setNewInviteRole(e.target.value as 'user_admin' | 'participant')}
-                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="participant">Participant</option>
-                      <option value="user_admin">Admin</option>
-                    </select>
+
+                <div className="space-y-2">
+                  {/* Header row */}
+                  <div className="grid grid-cols-12 gap-2 text-xs font-medium text-gray-700 px-2">
+                    <div className="col-span-4">Name</div>
+                    <div className="col-span-5">Email</div>
+                    <div className="col-span-2">Role</div>
+                    <div className="col-span-1"></div>
                   </div>
 
-                  {/* Preview new invites */}
-                  {parseNewInviteEmails().length > 0 && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <h5 className="text-sm font-medium text-blue-900 mb-2">New Invitations Preview:</h5>
-                      <div className="space-y-1">
-                        {parseNewInviteEmails().map((email, index) => (
-                          <div key={index} className="flex items-center text-sm text-blue-800">
-                            <Mail className="w-4 h-4 mr-2" />
-                            <span>{email}</span>
-                            <span className="ml-2 text-xs bg-blue-200 px-2 py-0.5 rounded">
-                              {newInviteRole === 'user_admin' ? 'Admin' : 'Participant'}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
+                  {/* Invite rows */}
+                  {newInvites.map((invite, index) => (
+                    <div key={index} className="grid grid-cols-12 gap-2 items-center">
+                      <input
+                        type="text"
+                        value={invite.name}
+                        onChange={(e) => handleNewInviteChange(index, 'name', e.target.value)}
+                        placeholder="Full name"
+                        className="col-span-4 px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                      <input
+                        type="email"
+                        value={invite.email}
+                        onChange={(e) => handleNewInviteChange(index, 'email', e.target.value)}
+                        placeholder="email@example.com"
+                        className="col-span-5 px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                      <select
+                        value={invite.role}
+                        onChange={(e) => handleNewInviteChange(index, 'role', e.target.value as 'user_admin' | 'participant')}
+                        className="col-span-2 px-2 py-2 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="participant">Participant</option>
+                        <option value="user_admin">Admin</option>
+                      </select>
+                      {newInvites.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeInviteRow(index)}
+                          className="col-span-1 text-gray-400 hover:text-red-600 flex items-center justify-center"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Preview valid invites */}
+                  {getValidNewInvites().length > 0 && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+                      <h5 className="text-xs font-medium text-blue-900 mb-2">
+                        {getValidNewInvites().length} new invitation{getValidNewInvites().length !== 1 ? 's' : ''} ready
+                      </h5>
                     </div>
                   )}
                 </div>
@@ -1935,8 +1973,8 @@ export function AssessmentsTab({ user, organisation, member }: AssessmentsTabPro
                     <div>
                       <h5 className="font-medium text-green-900">Assessment Summary</h5>
                       <p className="text-sm text-green-700">
-                        Total participants: {totalParticipants} 
-                        ({selectedMembers.length} existing members + {parseNewInviteEmails().length} new invites)
+                        Total participants: {totalParticipants}
+                        ({selectedMembers.length} existing members + {getValidNewInvites().length} new invites)
                       </p>
                     </div>
                   </div>
