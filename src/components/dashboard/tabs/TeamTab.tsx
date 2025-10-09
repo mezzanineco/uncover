@@ -12,12 +12,14 @@ import {
   Send,
   Trash2,
   X,
-  CheckCircle
+  CheckCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { Button } from '../../common/Button';
 import type { Organisation, OrganisationMember, Invite } from '../../../types/auth';
 import { hasPermission } from '../../../types/auth';
 import { inviteService } from '../../../services/database';
+import { getAppUrl, isLocalhost, isDevelopmentMode } from '../../../utils/appUrl';
 
 interface TeamTabProps {
   organisation: Organisation;
@@ -259,6 +261,24 @@ export function TeamTab({ organisation, member }: TeamTabProps) {
 
     if (emails.length === 0) return;
 
+    const appUrl = getAppUrl();
+    if (isLocalhost(appUrl) && !isDevelopmentMode()) {
+      alert('Cannot send invite emails with localhost URLs in production. Please configure VITE_APP_URL environment variable with your deployed application URL.');
+      return;
+    }
+
+    if (isLocalhost(appUrl) && isDevelopmentMode()) {
+      const proceed = confirm(
+        'WARNING: Invite emails will contain localhost URLs which will not work for recipients.\n\n' +
+        'To test invite emails properly, configure VITE_APP_URL in your .env file with:\n' +
+        '- An ngrok URL (https://ngrok.com)\n' +
+        '- A Cloudflare Tunnel URL\n' +
+        '- Your deployed application URL\n\n' +
+        'Do you want to proceed anyway (for development testing only)?'
+      );
+      if (!proceed) return;
+    }
+
     try {
       const invitePromises = emails.map(email =>
         inviteService.createInvite({
@@ -290,10 +310,15 @@ export function TeamTab({ organisation, member }: TeamTabProps) {
       setShowInviteModal(false);
 
       window.dispatchEvent(new CustomEvent('inviteChange'));
-      alert('Invitations sent successfully!');
+
+      const message = isLocalhost(appUrl)
+        ? 'Invitations created! Note: Email links contain localhost URLs and will not work for external recipients.'
+        : 'Invitations sent successfully!';
+      alert(message);
     } catch (error) {
       console.error('Error sending invites:', error);
-      alert('Failed to send invitations. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Failed to send invitations: ${errorMessage}`);
     }
   };
 
@@ -517,7 +542,16 @@ export function TeamTab({ organisation, member }: TeamTabProps) {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Invite Team Members</h3>
-            
+
+            {isLocalhost(getAppUrl()) && (
+              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start">
+                <AlertTriangle className="w-5 h-5 text-amber-600 mr-2 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-amber-800">
+                  <strong>Development Mode:</strong> Email links will use localhost URLs. Configure <code className="bg-amber-100 px-1 rounded">VITE_APP_URL</code> in your .env file for proper invite links.
+                </div>
+              </div>
+            )}
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">

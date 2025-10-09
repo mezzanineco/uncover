@@ -1,10 +1,11 @@
 import { supabase } from '../lib/supabase'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
-import type { 
-  User, 
-  Organisation, 
-  OrganisationMember, 
-  Assessment, 
+import { getInviteUrl, validateInviteUrl } from '../utils/appUrl'
+import type {
+  User,
+  Organisation,
+  OrganisationMember,
+  Assessment,
   Invite,
   AssessmentResult,
   Response
@@ -491,8 +492,18 @@ export const inviteService = {
         throw new Error('Invite not found');
       }
 
-      const baseUrl = window.location.origin;
-      const inviteUrl = `${baseUrl}/invite/${token}`;
+      const inviteUrl = getInviteUrl(token);
+
+      const validation = validateInviteUrl(inviteUrl);
+      if (!validation.valid) {
+        const errorMsg = validation.error || 'Invalid invite URL';
+        console.error('Invalid invite URL:', errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      if (validation.warning) {
+        console.warn('Invite URL warning:', validation.warning);
+      }
 
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-invite-email`,
