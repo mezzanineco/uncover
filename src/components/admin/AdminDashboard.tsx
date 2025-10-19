@@ -3,12 +3,13 @@ import { AdminLayout } from './AdminLayout';
 import { Dashboard } from './Dashboard';
 import { QuestionBankManager } from './QuestionBankManager';
 import { SessionManager } from './SessionManager';
+import { ReportsView } from './ReportsView';
 import { loadQuestionsFromCSV } from '../../data/csvLoader';
 import type { User, QuestionBank, Session } from '../../types/admin';
 import type { ParsedQuestion } from '../../types';
 
 export function AdminDashboard() {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'question-banks' | 'sessions'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'question-banks' | 'sessions' | 'reports'>('dashboard');
   
   // Mock current user - in production this would come from auth context
   const currentUser: User = {
@@ -250,6 +251,13 @@ export function AdminDashboard() {
             onStopSession={(id) => console.log('Stopping session:', id)}
             onViewSession={(id) => console.log('Viewing session:', id)}
             onCopyJoinLink={(link) => navigator.clipboard.writeText(link)}
+          />
+        );
+      case 'reports':
+        return (
+          <ReportsView
+            organisationId="org-1"
+            currentUserId={currentUser.id}
           />
         );
       default:

@@ -626,7 +626,220 @@ export const inviteService = {
       .from('invites')
       .delete()
       .eq('id', id)
-    
+
     if (error) throw error
+  }
+}
+
+// Review operations
+export const reviewService = {
+  async getResultsForReview(organisationId: string, filters?: {
+    status?: 'pending' | 'approved' | 'flagged' | 'rejected'
+    assessmentId?: string
+    dateFrom?: string
+    dateTo?: string
+  }) {
+    let query = supabase
+      .from('assessment_results')
+      .select(`
+        *,
+        assessments!assessment_results_assessment_id_fkey (
+          id,
+          name,
+          organisation_id
+        ),
+        users!assessment_results_user_id_fkey (
+          id,
+          name,
+          email
+        ),
+        reviewer:users!assessment_results_reviewed_by_fkey (
+          id,
+          name,
+          email
+        )
+      `)
+      .eq('assessments.organisation_id', organisationId)
+
+    if (filters?.status) {
+      query = query.eq('review_status', filters.status)
+    }
+
+    if (filters?.assessmentId) {
+      query = query.eq('assessment_id', filters.assessmentId)
+    }
+
+    if (filters?.dateFrom) {
+      query = query.gte('completed_at', filters.dateFrom)
+    }
+
+    if (filters?.dateTo) {
+      query = query.lte('completed_at', filters.dateTo)
+    }
+
+    const { data, error } = await query.order('completed_at', { ascending: false })
+
+    if (error) throw error
+    return data
+  },
+
+  async updateReviewStatus(resultId: string, updates: {
+    reviewStatus: 'pending' | 'approved' | 'flagged' | 'rejected'
+    reviewedBy: string
+    reviewNotes?: string
+    flaggedReason?: string
+  }) {
+    const { data, error } = await supabase
+      .from('assessment_results')
+      .update({
+        review_status: updates.reviewStatus,
+        reviewed_by: updates.reviewedBy,
+        reviewed_at: new Date().toISOString(),
+        review_notes: updates.reviewNotes,
+        flagged_reason: updates.flaggedReason
+      })
+      .eq('id', resultId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async bulkUpdateReviewStatus(resultIds: string[], updates: {
+    reviewStatus: 'pending' | 'approved' | 'flagged' | 'rejected'
+    reviewedBy: string
+    reviewNotes?: string
+  }) {
+    const { data, error } = await supabase
+      .from('assessment_results')
+      .update({
+        review_status: updates.reviewStatus,
+        reviewed_by: updates.reviewedBy,
+        reviewed_at: new Date().toISOString(),
+        review_notes: updates.reviewNotes
+      })
+      .in('id', resultIds)
+      .select()
+
+    if (error) throw error
+    return data
+  },
+
+  async getReviewHistory(resultId: string) {
+    const { data, error } = await supabase
+      .from('result_reviews')
+      .select(`
+        *,
+        reviewer:users!result_reviews_reviewer_id_fkey (
+          id,
+          name,
+          email
+        )
+      `)
+      .eq('result_id', resultId)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data
+  },
+
+  async getReviewStats(organisationId: string) {
+    const { data: results, error } = await supabase
+      .from('assessment_results')
+      .select(`
+        review_status,
+        assessments!assessment_results_assessment_id_fkey (
+          organisation_id
+        )
+      `)
+      .eq('assessments.organisation_id', organisationId)
+
+    if (error) throw error
+
+    const stats = {
+      total: results?.length || 0,
+      pending: results?.filter(r => r.review_status === 'pending').length || 0,
+      approved: results?.filter(r => r.review_status === 'approved').length || 0,
+      flagged: results?.filter(r => r.review_status === 'flagged').length || 0,
+      rejected: results?.filter(r => r.review_status === 'rejected').length || 0
+    }
+
+    return stats
+  },
+
+  async getParticipantDetails(resultId: string) {
+    const { data, error } = await supabase
+      .from('assessment_results')
+      .select(`
+        *,
+        assessments!assessment_results_assessment_id_fkey (
+          id,
+          name,
+          description,
+          created_at
+        ),
+        users!assessment_results_user_id_fkey (
+          id,
+          name,
+          email,
+          avatar
+        ),
+        assessment_responses!assessment_responses_assessment_id_fkey (
+          question_id,
+          response_value,
+          response_timestamp
+        )
+      `)
+      .eq('id', resultId)
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async calculateQualityScore(resultId: string) {
+    try {
+      const details = await this.getParticipantDetails(resultId)
+
+      let score = 100
+
+      const responses = details.assessment_responses || []
+      if (responses.length < 10) {
+        score -= 30
+      }
+
+      const timestamps = responses.map(r => new Date(r.response_timestamp).getTime())
+      const timeDiffs = []
+      for (let i = 1; i < timestamps.length; i++) {
+        timeDiffs.push(timestamps[i] - timestamps[i-1])
+      }
+      const avgTimeDiff = timeDiffs.reduce((a, b) => a + b, 0) / timeDiffs.length
+
+      if (avgTimeDiff < 1000) {
+        score -= 40
+      } else if (avgTimeDiff < 3000) {
+        score -= 20
+      }
+
+      const confidenceScore = details.confidence || 0
+      if (confidenceScore < 50) {
+        score -= 20
+      } else if (confidenceScore < 70) {
+        score -= 10
+      }
+
+      score = Math.max(0, Math.min(100, score))
+
+      await supabase
+        .from('assessment_results')
+        .update({ response_quality_score: score })
+        .eq('id', resultId)
+
+      return score
+    } catch (error) {
+      console.error('Error calculating quality score:', error)
+      return 0
+    }
   }
 }
