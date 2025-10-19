@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Mail, CheckCircle, XCircle, Loader2, UserPlus } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Mail, CheckCircle, XCircle, Loader2, UserPlus, Check, X } from 'lucide-react';
 import { Button } from '../common/Button';
 import { inviteService, userService, memberService } from '../../services/database';
 import { supabase } from '../../lib/supabase';
@@ -22,6 +22,11 @@ interface InviteData {
   assessmentName?: string;
 }
 
+interface PasswordRequirement {
+  label: string;
+  test: (password: string) => boolean;
+}
+
 export function InviteAcceptance({ token, onSuccess }: InviteAcceptanceProps) {
   const [loading, setLoading] = useState(true);
   const [invite, setInvite] = useState<InviteData | null>(null);
@@ -33,6 +38,25 @@ export function InviteAcceptance({ token, onSuccess }: InviteAcceptanceProps) {
     confirmPassword: ''
   });
   const [isNewUser, setIsNewUser] = useState(false);
+
+  const passwordRequirements: PasswordRequirement[] = [
+    { label: 'At least 8 characters long', test: (pwd) => pwd.length >= 8 },
+    { label: 'Contains at least one uppercase letter', test: (pwd) => /[A-Z]/.test(pwd) },
+    { label: 'Contains at least one lowercase letter', test: (pwd) => /[a-z]/.test(pwd) },
+    { label: 'Contains at least one number', test: (pwd) => /[0-9]/.test(pwd) },
+    { label: 'Contains at least one special character (!@#$%^&*)', test: (pwd) => /[!@#$%^&*(),.?":{}|<>]/.test(pwd) }
+  ];
+
+  const passwordValidation = useMemo(() => {
+    return {
+      requirements: passwordRequirements.map(req => ({
+        label: req.label,
+        met: req.test(newUserForm.password)
+      })),
+      allMet: passwordRequirements.every(req => req.test(newUserForm.password)),
+      passwordsMatch: newUserForm.password === newUserForm.confirmPassword && newUserForm.confirmPassword.length > 0
+    };
+  }, [newUserForm.password, newUserForm.confirmPassword]);
 
   useEffect(() => {
     loadInvite();
@@ -101,11 +125,11 @@ export function InviteAcceptance({ token, onSuccess }: InviteAcceptanceProps) {
         setError('Please enter your name.');
         return;
       }
-      if (!newUserForm.password || newUserForm.password.length < 8) {
-        setError('Password must be at least 8 characters long.');
+      if (!passwordValidation.allMet) {
+        setError('Please meet all password requirements.');
         return;
       }
-      if (newUserForm.password !== newUserForm.confirmPassword) {
+      if (!passwordValidation.passwordsMatch) {
         setError('Passwords do not match.');
         return;
       }
@@ -270,9 +294,29 @@ export function InviteAcceptance({ token, onSuccess }: InviteAcceptanceProps) {
                 value={newUserForm.password}
                 onChange={(e) => setNewUserForm(prev => ({ ...prev, password: e.target.value }))}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Minimum 8 characters"
+                placeholder="Create a secure password"
                 disabled={accepting}
               />
+
+              {newUserForm.password.length > 0 && (
+                <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="text-xs font-medium text-gray-700 mb-2">Password requirements:</p>
+                  <ul className="space-y-1.5">
+                    {passwordValidation.requirements.map((req, index) => (
+                      <li key={index} className="flex items-center text-xs">
+                        {req.met ? (
+                          <Check className="w-4 h-4 text-green-600 mr-2 flex-shrink-0" />
+                        ) : (
+                          <X className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
+                        )}
+                        <span className={req.met ? 'text-green-700' : 'text-gray-600'}>
+                          {req.label}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
             <div>
@@ -287,13 +331,36 @@ export function InviteAcceptance({ token, onSuccess }: InviteAcceptanceProps) {
                 placeholder="Re-enter password"
                 disabled={accepting}
               />
+
+              {newUserForm.confirmPassword.length > 0 && (
+                <div className="mt-2 flex items-center text-xs">
+                  {passwordValidation.passwordsMatch ? (
+                    <>
+                      <Check className="w-4 h-4 text-green-600 mr-1.5" />
+                      <span className="text-green-700">Passwords match</span>
+                    </>
+                  ) : (
+                    <>
+                      <X className="w-4 h-4 text-red-600 mr-1.5" />
+                      <span className="text-red-700">Passwords do not match</span>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start">
+            <XCircle className="w-5 h-5 text-red-600 mr-2 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-red-700">{error}</p>
           </div>
         )}
 
         <Button
           onClick={handleAcceptInvite}
-          disabled={accepting}
+          disabled={accepting || (isNewUser && (!passwordValidation.allMet || !passwordValidation.passwordsMatch))}
           className="w-full"
         >
           {accepting ? (
