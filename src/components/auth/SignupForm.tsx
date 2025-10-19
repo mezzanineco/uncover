@@ -1,11 +1,16 @@
-import React, { useState } from 'react';
-import { Mail, ArrowRight, CheckCircle, AlertCircle, User, Lock, Eye, EyeOff } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Mail, ArrowRight, CheckCircle, AlertCircle, User, Lock, Eye, EyeOff, Check, X } from 'lucide-react';
 import { Button } from '../common/Button';
 
 interface SignupFormProps {
   onSignup: (email: string) => Promise<void>;
   onSignupWithPassword: (username: string, email: string, password: string) => Promise<void>;
   onSwitchToLogin: () => void;
+}
+
+interface PasswordRequirement {
+  label: string;
+  test: (password: string) => boolean;
 }
 
 export function SignupForm({ onSignup, onSignupWithPassword, onSwitchToLogin }: SignupFormProps) {
@@ -20,9 +25,28 @@ export function SignupForm({ onSignup, onSignupWithPassword, onSwitchToLogin }: 
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState('');
 
+  const passwordRequirements: PasswordRequirement[] = [
+    { label: 'At least 8 characters long', test: (pwd) => pwd.length >= 8 },
+    { label: 'Contains at least one uppercase letter', test: (pwd) => /[A-Z]/.test(pwd) },
+    { label: 'Contains at least one lowercase letter', test: (pwd) => /[a-z]/.test(pwd) },
+    { label: 'Contains at least one number', test: (pwd) => /[0-9]/.test(pwd) },
+    { label: 'Contains at least one special character (!@#$%^&*)', test: (pwd) => /[!@#$%^&*(),.?":{}|<>]/.test(pwd) }
+  ];
+
+  const passwordValidation = useMemo(() => {
+    return {
+      requirements: passwordRequirements.map(req => ({
+        label: req.label,
+        met: req.test(password)
+      })),
+      allMet: passwordRequirements.every(req => req.test(password)),
+      passwordsMatch: password === confirmPassword && confirmPassword.length > 0
+    };
+  }, [password, confirmPassword]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email.trim()) {
       setError('Email is required');
       return;
@@ -44,12 +68,12 @@ export function SignupForm({ onSignup, onSignupWithPassword, onSwitchToLogin }: 
         return;
       }
 
-      if (password.length < 6) {
-        setError('Password must be at least 6 characters');
+      if (!passwordValidation.allMet) {
+        setError('Please meet all password requirements');
         return;
       }
 
-      if (password !== confirmPassword) {
+      if (!passwordValidation.passwordsMatch) {
         setError('Passwords do not match');
         return;
       }
@@ -64,7 +88,6 @@ export function SignupForm({ onSignup, onSignupWithPassword, onSwitchToLogin }: 
         setIsSuccess(true);
       } else {
         await onSignupWithPassword(username, email, password);
-        // For password signup, user is redirected immediately
       }
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.');
@@ -206,6 +229,26 @@ export function SignupForm({ onSignup, onSignupWithPassword, onSwitchToLogin }: 
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+
+              {password.length > 0 && (
+                <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="text-xs font-medium text-gray-700 mb-2">Password requirements:</p>
+                  <ul className="space-y-1.5">
+                    {passwordValidation.requirements.map((req, index) => (
+                      <li key={index} className="flex items-center text-xs">
+                        {req.met ? (
+                          <Check className="w-4 h-4 text-green-600 mr-2 flex-shrink-0" />
+                        ) : (
+                          <X className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
+                        )}
+                        <span className={req.met ? 'text-green-700' : 'text-gray-600'}>
+                          {req.label}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
             <div>
@@ -231,6 +274,22 @@ export function SignupForm({ onSignup, onSignupWithPassword, onSwitchToLogin }: 
                   {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+
+              {confirmPassword.length > 0 && (
+                <div className="mt-2 flex items-center text-xs">
+                  {passwordValidation.passwordsMatch ? (
+                    <>
+                      <Check className="w-4 h-4 text-green-600 mr-1.5" />
+                      <span className="text-green-700">Passwords match</span>
+                    </>
+                  ) : (
+                    <>
+                      <X className="w-4 h-4 text-red-600 mr-1.5" />
+                      <span className="text-red-700">Passwords do not match</span>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </>
         )}
@@ -246,12 +305,16 @@ export function SignupForm({ onSignup, onSignupWithPassword, onSwitchToLogin }: 
           type="submit"
           className="w-full"
           size="lg"
-          disabled={isLoading}
+          disabled={
+            isLoading ||
+            (signupMethod === 'password' &&
+              (!passwordValidation.allMet || !passwordValidation.passwordsMatch))
+          }
         >
           {isLoading ? (
             <div className="flex items-center">
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-              Sending magic link...
+              {signupMethod === 'magic-link' ? 'Sending magic link...' : 'Creating account...'}
             </div>
           ) : (
             <>
