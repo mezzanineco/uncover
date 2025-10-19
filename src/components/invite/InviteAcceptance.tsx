@@ -298,25 +298,24 @@ export function InviteAcceptance({ token, onSuccess }: InviteAcceptanceProps) {
                 disabled={accepting}
               />
 
-              {newUserForm.password.length > 0 && (
-                <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <p className="text-xs font-medium text-gray-700 mb-2">Password requirements:</p>
-                  <ul className="space-y-1.5">
-                    {passwordValidation.requirements.map((req, index) => (
-                      <li key={index} className="flex items-center text-xs">
-                        {req.met ? (
-                          <Check className="w-4 h-4 text-green-600 mr-2 flex-shrink-0" />
-                        ) : (
-                          <X className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
-                        )}
-                        <span className={req.met ? 'text-green-700' : 'text-gray-600'}>
-                          {req.label}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              <div className="mt-3 space-y-2">
+                {passwordValidation.requirements.map((req, index) => (
+                  <div key={index} className="flex items-center">
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center mr-3 flex-shrink-0 ${
+                      req.met ? 'bg-green-500' : 'bg-gray-400'
+                    }`}>
+                      {req.met ? (
+                        <Check className="w-3 h-3 text-white" />
+                      ) : (
+                        <X className="w-3 h-3 text-white" />
+                      )}
+                    </div>
+                    <span className={`text-sm ${req.met ? 'text-gray-900' : 'text-gray-600'}`}>
+                      {req.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div>
