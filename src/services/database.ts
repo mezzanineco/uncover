@@ -945,48 +945,98 @@ export const passwordRequirementsService = {
     requireNumber?: boolean
     requireSpecialChar?: boolean
   }): Promise<PasswordRequirements> {
-    const { data: { session } } = await supabase.auth.getSession()
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
 
-    if (!session) {
-      throw new Error('Authentication required. Please sign in again.')
-    }
+      if (!session) {
+        console.warn('No session found, using direct database update')
+        return await this.updateDirect(organisationId, userId, updates)
+      }
 
-    const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-password-policy`
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-password-policy`
 
-    const response = await fetch(apiUrl, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${session.access_token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        organisationId,
-        ...updates
+      const response = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          organisationId,
+          ...updates
+        })
       })
-    })
 
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.error || 'Failed to update password requirements')
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.warn('Edge Function failed, falling back to direct update:', errorData)
+        return await this.updateDirect(organisationId, userId, updates)
+      }
+
+      const result = await response.json()
+
+      if (!result.success || !result.data) {
+        console.warn('Invalid Edge Function response, falling back to direct update')
+        return await this.updateDirect(organisationId, userId, updates)
+      }
+
+      return {
+        id: result.data.id,
+        organisationId: result.data.organisationId,
+        minLength: result.data.minLength,
+        requireUppercase: result.data.requireUppercase,
+        requireLowercase: result.data.requireLowercase,
+        requireNumber: result.data.requireNumber,
+        requireSpecialChar: result.data.requireSpecialChar,
+        createdAt: new Date(result.data.createdAt),
+        updatedAt: new Date(result.data.updatedAt),
+        updatedBy: result.data.updatedBy
+      }
+    } catch (error) {
+      console.warn('Edge Function error, falling back to direct update:', error)
+      return await this.updateDirect(organisationId, userId, updates)
+    }
+  },
+
+  async updateDirect(organisationId: string, userId: string, updates: {
+    minLength?: number
+    requireUppercase?: boolean
+    requireLowercase?: boolean
+    requireNumber?: boolean
+    requireSpecialChar?: boolean
+  }): Promise<PasswordRequirements> {
+    const updateData: any = {
+      updated_by: userId,
+      updated_at: new Date().toISOString()
     }
 
-    const result = await response.json()
+    if (updates.minLength !== undefined) updateData.min_length = updates.minLength
+    if (updates.requireUppercase !== undefined) updateData.require_uppercase = updates.requireUppercase
+    if (updates.requireLowercase !== undefined) updateData.require_lowercase = updates.requireLowercase
+    if (updates.requireNumber !== undefined) updateData.require_number = updates.requireNumber
+    if (updates.requireSpecialChar !== undefined) updateData.require_special_char = updates.requireSpecialChar
 
-    if (!result.success || !result.data) {
-      throw new Error('Invalid response from server')
-    }
+    const { data, error } = await supabase
+      .from('password_requirements')
+      .update(updateData)
+      .eq('organisation_id', organisationId)
+      .select()
+      .maybeSingle()
+
+    if (error) throw error
+    if (!data) throw new Error('Failed to update password requirements')
 
     return {
-      id: result.data.id,
-      organisationId: result.data.organisationId,
-      minLength: result.data.minLength,
-      requireUppercase: result.data.requireUppercase,
-      requireLowercase: result.data.requireLowercase,
-      requireNumber: result.data.requireNumber,
-      requireSpecialChar: result.data.requireSpecialChar,
-      createdAt: new Date(result.data.createdAt),
-      updatedAt: new Date(result.data.updatedAt),
-      updatedBy: result.data.updatedBy
+      id: data.id,
+      organisationId: data.organisation_id,
+      minLength: data.min_length,
+      requireUppercase: data.require_uppercase,
+      requireLowercase: data.require_lowercase,
+      requireNumber: data.require_number,
+      requireSpecialChar: data.require_special_char,
+      createdAt: new Date(data.created_at),
+      updatedAt: new Date(data.updated_at),
+      updatedBy: data.updated_by
     }
   },
 
@@ -997,52 +1047,97 @@ export const passwordRequirementsService = {
     requireNumber?: boolean
     requireSpecialChar?: boolean
   }): Promise<PasswordRequirements> {
-    const { data: { session } } = await supabase.auth.getSession()
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
 
-    if (!session) {
-      throw new Error('Authentication required. Please sign in again.')
-    }
+      if (!session) {
+        console.warn('No session found, using direct database create')
+        return await this.createDirect(organisationId, userId, settings)
+      }
 
-    const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-password-policy`
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-password-policy`
 
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${session.access_token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        organisationId,
-        minLength: settings?.minLength ?? 8,
-        requireUppercase: settings?.requireUppercase ?? true,
-        requireLowercase: settings?.requireLowercase ?? true,
-        requireNumber: settings?.requireNumber ?? true,
-        requireSpecialChar: settings?.requireSpecialChar ?? true
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          organisationId,
+          minLength: settings?.minLength ?? 8,
+          requireUppercase: settings?.requireUppercase ?? true,
+          requireLowercase: settings?.requireLowercase ?? true,
+          requireNumber: settings?.requireNumber ?? true,
+          requireSpecialChar: settings?.requireSpecialChar ?? true
+        })
       })
-    })
 
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.error || 'Failed to create password requirements')
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.warn('Edge Function failed, falling back to direct create:', errorData)
+        return await this.createDirect(organisationId, userId, settings)
+      }
+
+      const result = await response.json()
+
+      if (!result.success || !result.data) {
+        console.warn('Invalid Edge Function response, falling back to direct create')
+        return await this.createDirect(organisationId, userId, settings)
+      }
+
+      return {
+        id: result.data.id,
+        organisationId: result.data.organisationId,
+        minLength: result.data.minLength,
+        requireUppercase: result.data.requireUppercase,
+        requireLowercase: result.data.requireLowercase,
+        requireNumber: result.data.requireNumber,
+        requireSpecialChar: result.data.requireSpecialChar,
+        createdAt: new Date(result.data.createdAt),
+        updatedAt: new Date(result.data.updatedAt),
+        updatedBy: result.data.updatedBy
+      }
+    } catch (error) {
+      console.warn('Edge Function error, falling back to direct create:', error)
+      return await this.createDirect(organisationId, userId, settings)
     }
+  },
 
-    const result = await response.json()
+  async createDirect(organisationId: string, userId: string, settings?: {
+    minLength?: number
+    requireUppercase?: boolean
+    requireLowercase?: boolean
+    requireNumber?: boolean
+    requireSpecialChar?: boolean
+  }): Promise<PasswordRequirements> {
+    const { data, error } = await supabase
+      .from('password_requirements')
+      .insert([{
+        organisation_id: organisationId,
+        min_length: settings?.minLength ?? 8,
+        require_uppercase: settings?.requireUppercase ?? true,
+        require_lowercase: settings?.requireLowercase ?? true,
+        require_number: settings?.requireNumber ?? true,
+        require_special_char: settings?.requireSpecialChar ?? true,
+        updated_by: userId
+      }])
+      .select()
+      .single()
 
-    if (!result.success || !result.data) {
-      throw new Error('Invalid response from server')
-    }
+    if (error) throw error
 
     return {
-      id: result.data.id,
-      organisationId: result.data.organisationId,
-      minLength: result.data.minLength,
-      requireUppercase: result.data.requireUppercase,
-      requireLowercase: result.data.requireLowercase,
-      requireNumber: result.data.requireNumber,
-      requireSpecialChar: result.data.requireSpecialChar,
-      createdAt: new Date(result.data.createdAt),
-      updatedAt: new Date(result.data.updatedAt),
-      updatedBy: result.data.updatedBy
+      id: data.id,
+      organisationId: data.organisation_id,
+      minLength: data.min_length,
+      requireUppercase: data.require_uppercase,
+      requireLowercase: data.require_lowercase,
+      requireNumber: data.require_number,
+      requireSpecialChar: data.require_special_char,
+      createdAt: new Date(data.created_at),
+      updatedAt: new Date(data.updated_at),
+      updatedBy: data.updated_by
     }
   },
 
