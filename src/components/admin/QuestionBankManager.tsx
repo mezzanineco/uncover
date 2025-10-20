@@ -104,6 +104,12 @@ export function QuestionBankManager({
     setViewMode('questions');
   };
 
+  const handleEditBank = (bankId: string) => {
+    setSelectedBankId(bankId);
+    setViewMode('questions');
+    onEdit(bankId);
+  };
+
   const getStatusIcon = (status: QuestionBank['status']) => {
     switch (status) {
       case 'published':
@@ -248,7 +254,7 @@ export function QuestionBankManager({
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
                           <button
-                            onClick={() => onEdit(bank.id)}
+                            onClick={() => handleEditBank(bank.id)}
                             className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline text-left"
                           >
                             {bank.name}
@@ -287,7 +293,7 @@ export function QuestionBankManager({
                             )}
                           </button>
                           <button
-                            onClick={() => onEdit(bank.id)}
+                            onClick={() => handleEditBank(bank.id)}
                             className="text-blue-600 hover:text-blue-900"
                             title="Edit"
                           >
