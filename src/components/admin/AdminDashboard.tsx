@@ -14,7 +14,7 @@ export function AdminDashboard() {
   
   // Mock current user - in production this would come from auth context
   const currentUser: User = {
-    id: 'user-1',
+    id: '00000000-0000-0000-0000-000000000001',
     name: 'Admin User',
     email: 'admin@example.com',
     role: 'super_admin',
@@ -23,7 +23,7 @@ export function AdminDashboard() {
   };
 
   // Mock organisation ID - in production this would come from auth context
-  const organisationId = 'org-demo-001';
+  const organisationId = '00000000-0000-0000-0000-000000000001';
   
   const [sessions] = useState<Session[]>([
     {
