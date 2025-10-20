@@ -912,9 +912,10 @@ export const passwordRequirementsService = {
       .update(updateData)
       .eq('organisation_id', organisationId)
       .select()
-      .single()
+      .maybeSingle()
 
     if (error) throw error
+    if (!data) throw new Error('Failed to update password requirements')
 
     return {
       id: data.id,
