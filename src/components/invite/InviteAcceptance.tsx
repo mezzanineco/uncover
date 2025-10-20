@@ -234,23 +234,6 @@ export function InviteAcceptance({ token, onSuccess }: InviteAcceptanceProps) {
           </p>
         </div>
 
-        <div className="bg-gray-50 rounded-lg p-4 mb-6">
-          <div className="flex items-start">
-            <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-gray-900">Invited to:</p>
-              <p className="text-sm text-gray-600">{invite.organizationName}</p>
-              {invite.assessmentName && (
-                <>
-                  <p className="text-sm font-medium text-gray-900 mt-2">Assessment:</p>
-                  <p className="text-sm text-gray-600">{invite.assessmentName}</p>
-                </>
-              )}
-              <p className="text-sm font-medium text-gray-900 mt-2">Role:</p>
-              <p className="text-sm text-gray-600 capitalize">{invite.role.replace('_', ' ')}</p>
-            </div>
-          </div>
-        </div>
 
         {isNewUser && (
           <div className="space-y-4 mb-6">
@@ -360,16 +343,17 @@ export function InviteAcceptance({ token, onSuccess }: InviteAcceptanceProps) {
         <Button
           onClick={handleAcceptInvite}
           disabled={accepting || (isNewUser && (!passwordValidation.allMet || !passwordValidation.passwordsMatch))}
+          size="lg"
           className="w-full"
         >
           {accepting ? (
             <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
               {isNewUser ? 'Creating Account...' : 'Accepting...'}
             </>
           ) : (
             <>
-              <CheckCircle className="w-4 h-4 mr-2" />
+              <CheckCircle className="w-5 h-5 mr-2" />
               {isNewUser ? 'Create Account & Accept' : 'Accept Invitation'}
             </>
           )}
