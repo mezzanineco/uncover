@@ -110,16 +110,18 @@ export function AdminDashboard() {
       version: '2.1',
       status: 'published',
       questionCount: 42,
-      createdAt: '2024-01-15T10:00:00Z',
+      createdAt: new Date('2024-01-15T10:00:00Z'),
+      lastModified: new Date('2024-01-15T10:00:00Z'),
       createdBy: 'admin@example.com'
     },
     {
-      id: 'bank-2', 
+      id: 'bank-2',
       name: 'Archetype Assessment v2.2',
       version: '2.2',
       status: 'draft',
       questionCount: 45,
-      createdAt: '2024-01-20T14:30:00Z',
+      createdAt: new Date('2024-01-20T14:30:00Z'),
+      lastModified: new Date('2024-01-22T09:15:00Z'),
       createdBy: 'admin@example.com'
     }
   ]);
@@ -140,10 +142,12 @@ export function AdminDashboard() {
   };
 
   const handlePublish = (bankId: string) => {
-    setQuestionBanks(banks => 
-      banks.map(bank => 
-        bank.id === bankId 
-          ? { ...bank, status: 'published' as const }
+    setQuestionBanks(banks =>
+      banks.map(bank =>
+        bank.id === bankId
+          ? { ...bank, status: 'published' as const, lastModified: new Date(), publishedAt: new Date() }
+          : bank.status === 'published'
+          ? { ...bank, status: 'archived' as const, lastModified: new Date() }
           : bank
       )
     );
@@ -153,10 +157,60 @@ export function AdminDashboard() {
     setQuestionBanks(banks =>
       banks.map(bank =>
         bank.id === bankId
-          ? { ...bank, status: 'archived' as const }
+          ? { ...bank, status: 'archived' as const, lastModified: new Date() }
           : bank
       )
     );
+  };
+
+  const handleToggleStatus = (bankId: string) => {
+    setQuestionBanks(banks => {
+      const targetBank = banks.find(b => b.id === bankId);
+      if (!targetBank) return banks;
+
+      let newStatus: 'draft' | 'published' | 'archived';
+      if (targetBank.status === 'published') {
+        newStatus = 'archived';
+      } else if (targetBank.status === 'archived') {
+        newStatus = 'draft';
+      } else {
+        newStatus = 'published';
+      }
+
+      return banks.map(bank =>
+        bank.id === bankId
+          ? { ...bank, status: newStatus, lastModified: new Date(), publishedAt: newStatus === 'published' ? new Date() : bank.publishedAt }
+          : newStatus === 'published' && bank.status === 'published'
+          ? { ...bank, status: 'archived' as const, lastModified: new Date() }
+          : bank
+      );
+    });
+  };
+
+  const handleDelete = (bankId: string) => {
+    if (window.confirm('Are you sure you want to delete this question bank? This action cannot be undone.')) {
+      setQuestionBanks(banks => banks.filter(bank => bank.id !== bankId));
+    }
+  };
+
+  const handleDuplicate = (bankId: string) => {
+    setQuestionBanks(banks => {
+      const bankToDuplicate = banks.find(b => b.id === bankId);
+      if (!bankToDuplicate) return banks;
+
+      const newBank: QuestionBank = {
+        ...bankToDuplicate,
+        id: `bank-${Date.now()}`,
+        name: `${bankToDuplicate.name} (Copy)`,
+        version: `${parseFloat(bankToDuplicate.version) + 0.1}`,
+        status: 'draft',
+        createdAt: new Date(),
+        lastModified: new Date(),
+        publishedAt: undefined
+      };
+
+      return [...banks, newBank];
+    });
   };
 
   const handlePreview = (bankId: string) => {
@@ -239,6 +293,9 @@ export function AdminDashboard() {
             onArchive={handleArchive}
             onPreview={handlePreview}
             onEdit={handleEdit}
+            onDelete={handleDelete}
+            onDuplicate={handleDuplicate}
+            onToggleStatus={handleToggleStatus}
             onAddQuestion={handleAddQuestion}
             onUpdateQuestion={handleUpdateQuestion}
             onArchiveQuestion={handleArchiveQuestion}

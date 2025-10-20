@@ -32,6 +32,7 @@ export interface QuestionBank {
   description?: string;
   createdBy: string;
   createdAt: Date;
+  lastModified: Date;
   publishedAt?: Date;
   questionCount: number;
 }

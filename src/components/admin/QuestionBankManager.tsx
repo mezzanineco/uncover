@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
-import { 
-  Upload, 
-  Download, 
-  Eye, 
-  Edit, 
-  Archive, 
+import {
+  Upload,
+  Download,
+  Eye,
+  Edit,
+  Archive,
   Plus,
   FileText,
   AlertCircle,
   CheckCircle,
   Clock,
-  Trash2
+  Trash2,
+  Copy,
+  ToggleLeft,
+  ToggleRight
 } from 'lucide-react';
 import { Button } from '../common/Button';
 import { QuestionEditorModal } from './QuestionEditorModal';
@@ -25,20 +28,26 @@ interface QuestionBankManagerProps {
   onArchive: (bankId: string) => void;
   onPreview: (bankId: string) => void;
   onEdit: (bankId: string) => void;
+  onDelete: (bankId: string) => void;
+  onDuplicate: (bankId: string) => void;
+  onToggleStatus: (bankId: string) => void;
   onAddQuestion: (question: ParsedQuestion) => void;
   onUpdateQuestion: (question: ParsedQuestion) => void;
   onArchiveQuestion: (questionId: string) => void;
   onDeleteQuestion: (questionId: string) => void;
 }
 
-export function QuestionBankManager({ 
-  questionBanks, 
+export function QuestionBankManager({
+  questionBanks,
   questions,
-  onUpload, 
-  onPublish, 
-  onArchive, 
-  onPreview, 
+  onUpload,
+  onPublish,
+  onArchive,
+  onPreview,
   onEdit,
+  onDelete,
+  onDuplicate,
+  onToggleStatus,
   onAddQuestion,
   onUpdateQuestion,
   onArchiveQuestion,
@@ -226,6 +235,9 @@ export function QuestionBankManager({
                       Created
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Last Modified
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -235,7 +247,12 @@ export function QuestionBankManager({
                     <tr key={bank.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">{bank.name}</div>
+                          <button
+                            onClick={() => onEdit(bank.id)}
+                            className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline text-left"
+                          >
+                            {bank.name}
+                          </button>
                           <div className="text-sm text-gray-500">Version {bank.version}</div>
                         </div>
                       </td>
@@ -248,47 +265,48 @@ export function QuestionBankManager({
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <button
-                          onClick={() => handleViewQuestions(bank.id)}
-                          className="text-blue-600 hover:text-blue-800 underline"
-                        >
-                          {bank.questionCount} questions
-                        </button>
+                        {bank.questionCount} questions
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {new Date(bank.createdAt).toLocaleDateString()}
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(bank.lastModified).toLocaleDateString()}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex space-x-2">
                           <button
-                            onClick={() => onPreview(bank.id)}
-                            className="text-blue-600 hover:text-blue-900"
+                            onClick={() => onToggleStatus(bank.id)}
+                            className="text-purple-600 hover:text-purple-900"
+                            title="Toggle Status"
                           >
-                            <Eye className="w-4 h-4" />
+                            {bank.status === 'published' ? (
+                              <ToggleRight className="w-4 h-4" />
+                            ) : (
+                              <ToggleLeft className="w-4 h-4" />
+                            )}
                           </button>
                           <button
                             onClick={() => onEdit(bank.id)}
-                            className="text-gray-600 hover:text-gray-900"
+                            className="text-blue-600 hover:text-blue-900"
+                            title="Edit"
                           >
                             <Edit className="w-4 h-4" />
                           </button>
-                          {bank.status === 'draft' && (
-                            <Button
-                              size="sm"
-                              onClick={() => onPublish(bank.id)}
-                              className="ml-2"
-                            >
-                              Publish
-                            </Button>
-                          )}
-                          {bank.status === 'published' && (
-                            <button
-                              onClick={() => onArchive(bank.id)}
-                              className="text-red-600 hover:text-red-900 ml-2"
-                            >
-                              <Archive className="w-4 h-4" />
-                            </button>
-                          )}
+                          <button
+                            onClick={() => onDuplicate(bank.id)}
+                            className="text-green-600 hover:text-green-900"
+                            title="Duplicate"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => onDelete(bank.id)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </td>
                     </tr>
