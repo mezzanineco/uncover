@@ -33,9 +33,9 @@ export const userService = {
       .from('users')
       .select('*')
       .eq('email', email)
-      .single()
-    
-    if (error && error.code !== 'PGRST116') throw error
+      .maybeSingle()
+
+    if (error) throw error
     return data
   },
 

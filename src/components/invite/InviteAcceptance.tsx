@@ -107,8 +107,14 @@ export function InviteAcceptance({ token, onSuccess }: InviteAcceptanceProps) {
         assessmentName: data.assessments?.name
       });
 
-      const existingUser = await userService.getUserByEmail(data.email);
-      setIsNewUser(!existingUser);
+      try {
+        const existingUser = await userService.getUserByEmail(data.email);
+        setIsNewUser(!existingUser);
+        console.log('User check:', { email: data.email, existingUser, isNewUser: !existingUser });
+      } catch (userCheckError) {
+        console.warn('Could not check for existing user, assuming new user:', userCheckError);
+        setIsNewUser(true);
+      }
     } catch (err) {
       console.error('Error loading invite:', err);
       setError('Failed to load invitation details. Please try again.');
