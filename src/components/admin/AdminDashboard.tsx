@@ -4,12 +4,13 @@ import { Dashboard } from './Dashboard';
 import { QuestionBankManager } from './QuestionBankManager';
 import { SessionManager } from './SessionManager';
 import { ReportsView } from './ReportsView';
+import { AdminSettings } from './AdminSettings';
 import { loadQuestionsFromCSV } from '../../data/csvLoader';
 import type { User, QuestionBank, Session } from '../../types/admin';
 import type { ParsedQuestion } from '../../types';
 
 export function AdminDashboard() {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'question-banks' | 'sessions' | 'reports'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'question-banks' | 'sessions' | 'reports' | 'settings'>('dashboard');
   
   // Mock current user - in production this would come from auth context
   const currentUser: User = {
@@ -20,6 +21,9 @@ export function AdminDashboard() {
     createdAt: new Date('2024-01-01'),
     lastLoginAt: new Date()
   };
+
+  // Mock organisation ID - in production this would come from auth context
+  const organisationId = 'org-demo-001';
   
   const [sessions] = useState<Session[]>([
     {
@@ -256,8 +260,15 @@ export function AdminDashboard() {
       case 'reports':
         return (
           <ReportsView
-            organisationId="org-1"
+            organisationId={organisationId}
             currentUserId={currentUser.id}
+          />
+        );
+      case 'settings':
+        return (
+          <AdminSettings
+            currentUser={currentUser}
+            organisationId={organisationId}
           />
         );
       default:
