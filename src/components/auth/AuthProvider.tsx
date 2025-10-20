@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { userService, organisationService, memberService } from '../../services/database';
 import type { User, Organisation, OrganisationMember } from '../../types/auth';
 import { AuthContext, type AuthContextType, type AuthState } from '../../contexts/AuthContext';
@@ -18,8 +18,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
   });
 
   useEffect(() => {
-    // Check for existing session on mount
     checkExistingSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        await loadUserData(session.user.id, session.user.email!);
+      } else if (event === 'SIGNED_OUT') {
+        setAuthState({
+          user: null,
+          organisation: null,
+          member: null,
+          isLoading: false,
+          isAuthenticated: false
+        });
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const checkExistingSession = async () => {

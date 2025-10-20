@@ -140,8 +140,31 @@ export function InviteAcceptance({ token, onSuccess }: InviteAcceptanceProps) {
       setError(null);
 
       let userId: string;
+      let authUserId: string | null = null;
 
       if (isNewUser) {
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: invite.email,
+          password: newUserForm.password,
+          options: {
+            data: {
+              name: newUserForm.name
+            },
+            emailRedirectTo: window.location.origin
+          }
+        });
+
+        if (authError) {
+          console.error('Supabase Auth signup error:', authError);
+          throw new Error(`Authentication failed: ${authError.message}`);
+        }
+
+        if (!authData.user) {
+          throw new Error('Failed to create user account');
+        }
+
+        authUserId = authData.user.id;
+
         const newUser = await userService.createUser({
           email: invite.email,
           name: newUserForm.name
@@ -150,9 +173,15 @@ export function InviteAcceptance({ token, onSuccess }: InviteAcceptanceProps) {
       } else {
         const existingUser = await userService.getUserByEmail(invite.email);
         if (!existingUser) {
-          throw new Error('User not found');
+          throw new Error('User not found. Please sign in first to accept this invitation.');
         }
         userId = existingUser.id;
+
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          setError('Please sign in to accept this invitation.');
+          return;
+        }
       }
 
       await memberService.addMember({
@@ -169,6 +198,8 @@ export function InviteAcceptance({ token, onSuccess }: InviteAcceptanceProps) {
         .update({ accepted_at: new Date().toISOString() })
         .eq('id', invite.id);
 
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       if (invite.assessmentId) {
         window.location.href = `/assessment/${invite.assessmentId}`;
       } else {
@@ -178,9 +209,26 @@ export function InviteAcceptance({ token, onSuccess }: InviteAcceptanceProps) {
       if (onSuccess) {
         onSuccess();
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error accepting invite:', err);
-      setError('Failed to accept invitation. Please try again.');
+
+      let errorMessage = 'Failed to accept invitation. Please try again.';
+
+      if (err.message) {
+        if (err.message.includes('already registered') || err.message.includes('already exists')) {
+          errorMessage = 'An account with this email already exists. Please sign in instead.';
+        } else if (err.message.includes('Authentication failed')) {
+          errorMessage = err.message;
+        } else if (err.message.includes('User not found')) {
+          errorMessage = err.message;
+        } else if (err.code === 'PGRST301' || err.code === '42501') {
+          errorMessage = 'Permission denied. Please contact support.';
+        } else if (err.message.includes('network') || err.message.includes('fetch')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        }
+      }
+
+      setError(errorMessage);
     } finally {
       setAccepting(false);
     }
