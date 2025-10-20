@@ -848,6 +848,55 @@ export const reviewService = {
 // Password requirements operations
 export const passwordRequirementsService = {
   async getByOrganisation(organisationId: string): Promise<PasswordRequirements | null> {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (!session) {
+        console.warn('No active session, falling back to direct database query')
+        return this.getByOrganisationDirect(organisationId)
+      }
+
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-password-policy?organisationId=${organisationId}`
+
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Edge Function error:', errorData)
+        return this.getByOrganisationDirect(organisationId)
+      }
+
+      const result = await response.json()
+
+      if (result.minLength === undefined) {
+        return null
+      }
+
+      return {
+        id: result.id || 'default',
+        organisationId: result.organisationId || organisationId,
+        minLength: result.minLength,
+        requireUppercase: result.requireUppercase,
+        requireLowercase: result.requireLowercase,
+        requireNumber: result.requireNumber,
+        requireSpecialChar: result.requireSpecialChar,
+        createdAt: result.createdAt ? new Date(result.createdAt) : new Date(),
+        updatedAt: result.updatedAt ? new Date(result.updatedAt) : new Date(),
+        updatedBy: result.updatedBy
+      }
+    } catch (error) {
+      console.error('Error fetching password requirements from Edge Function:', error)
+      return this.getByOrganisationDirect(organisationId)
+    }
+  },
+
+  async getByOrganisationDirect(organisationId: string): Promise<PasswordRequirements | null> {
     const { data, error } = await supabase
       .from('password_requirements')
       .select('*')
@@ -896,38 +945,48 @@ export const passwordRequirementsService = {
     requireNumber?: boolean
     requireSpecialChar?: boolean
   }): Promise<PasswordRequirements> {
-    const updateData: any = {
-      updated_by: userId,
-      updated_at: new Date().toISOString()
+    const { data: { session } } = await supabase.auth.getSession()
+
+    if (!session) {
+      throw new Error('Authentication required. Please sign in again.')
     }
 
-    if (updates.minLength !== undefined) updateData.min_length = updates.minLength
-    if (updates.requireUppercase !== undefined) updateData.require_uppercase = updates.requireUppercase
-    if (updates.requireLowercase !== undefined) updateData.require_lowercase = updates.requireLowercase
-    if (updates.requireNumber !== undefined) updateData.require_number = updates.requireNumber
-    if (updates.requireSpecialChar !== undefined) updateData.require_special_char = updates.requireSpecialChar
+    const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-password-policy`
 
-    const { data, error } = await supabase
-      .from('password_requirements')
-      .update(updateData)
-      .eq('organisation_id', organisationId)
-      .select()
-      .maybeSingle()
+    const response = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        organisationId,
+        ...updates
+      })
+    })
 
-    if (error) throw error
-    if (!data) throw new Error('Failed to update password requirements')
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to update password requirements')
+    }
+
+    const result = await response.json()
+
+    if (!result.success || !result.data) {
+      throw new Error('Invalid response from server')
+    }
 
     return {
-      id: data.id,
-      organisationId: data.organisation_id,
-      minLength: data.min_length,
-      requireUppercase: data.require_uppercase,
-      requireLowercase: data.require_lowercase,
-      requireNumber: data.require_number,
-      requireSpecialChar: data.require_special_char,
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at),
-      updatedBy: data.updated_by
+      id: result.data.id,
+      organisationId: result.data.organisationId,
+      minLength: result.data.minLength,
+      requireUppercase: result.data.requireUppercase,
+      requireLowercase: result.data.requireLowercase,
+      requireNumber: result.data.requireNumber,
+      requireSpecialChar: result.data.requireSpecialChar,
+      createdAt: new Date(result.data.createdAt),
+      updatedAt: new Date(result.data.updatedAt),
+      updatedBy: result.data.updatedBy
     }
   },
 
@@ -938,33 +997,74 @@ export const passwordRequirementsService = {
     requireNumber?: boolean
     requireSpecialChar?: boolean
   }): Promise<PasswordRequirements> {
-    const { data, error } = await supabase
-      .from('password_requirements')
-      .insert([{
-        organisation_id: organisationId,
-        min_length: settings?.minLength ?? 8,
-        require_uppercase: settings?.requireUppercase ?? true,
-        require_lowercase: settings?.requireLowercase ?? true,
-        require_number: settings?.requireNumber ?? true,
-        require_special_char: settings?.requireSpecialChar ?? true,
-        updated_by: userId
-      }])
-      .select()
-      .single()
+    const { data: { session } } = await supabase.auth.getSession()
 
-    if (error) throw error
+    if (!session) {
+      throw new Error('Authentication required. Please sign in again.')
+    }
+
+    const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-password-policy`
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        organisationId,
+        minLength: settings?.minLength ?? 8,
+        requireUppercase: settings?.requireUppercase ?? true,
+        requireLowercase: settings?.requireLowercase ?? true,
+        requireNumber: settings?.requireNumber ?? true,
+        requireSpecialChar: settings?.requireSpecialChar ?? true
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to create password requirements')
+    }
+
+    const result = await response.json()
+
+    if (!result.success || !result.data) {
+      throw new Error('Invalid response from server')
+    }
 
     return {
-      id: data.id,
-      organisationId: data.organisation_id,
-      minLength: data.min_length,
-      requireUppercase: data.require_uppercase,
-      requireLowercase: data.require_lowercase,
-      requireNumber: data.require_number,
-      requireSpecialChar: data.require_special_char,
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at),
-      updatedBy: data.updated_by
+      id: result.data.id,
+      organisationId: result.data.organisationId,
+      minLength: result.data.minLength,
+      requireUppercase: result.data.requireUppercase,
+      requireLowercase: result.data.requireLowercase,
+      requireNumber: result.data.requireNumber,
+      requireSpecialChar: result.data.requireSpecialChar,
+      createdAt: new Date(result.data.createdAt),
+      updatedAt: new Date(result.data.updatedAt),
+      updatedBy: result.data.updatedBy
     }
+  },
+
+  async getAuditLog(organisationId: string): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('password_requirements_audit_log')
+      .select(`
+        *,
+        user:changed_by (
+          name,
+          email
+        )
+      `)
+      .eq('organisation_id', organisationId)
+      .order('changed_at', { ascending: false })
+      .limit(50)
+
+    if (error) {
+      console.error('Error fetching audit log:', error)
+      return []
+    }
+
+    return data || []
   }
 }
