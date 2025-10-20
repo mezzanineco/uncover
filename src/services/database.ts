@@ -8,7 +8,8 @@ import type {
   Assessment,
   Invite,
   AssessmentResult,
-  Response
+  Response,
+  PasswordRequirements
 } from '../types/auth'
 
 // User operations
@@ -840,6 +841,129 @@ export const reviewService = {
     } catch (error) {
       console.error('Error calculating quality score:', error)
       return 0
+    }
+  }
+}
+
+// Password requirements operations
+export const passwordRequirementsService = {
+  async getByOrganisation(organisationId: string): Promise<PasswordRequirements | null> {
+    const { data, error } = await supabase
+      .from('password_requirements')
+      .select('*')
+      .eq('organisation_id', organisationId)
+      .maybeSingle()
+
+    if (error) {
+      console.error('Error fetching password requirements:', error)
+      return null
+    }
+
+    if (!data) return null
+
+    return {
+      id: data.id,
+      organisationId: data.organisation_id,
+      minLength: data.min_length,
+      requireUppercase: data.require_uppercase,
+      requireLowercase: data.require_lowercase,
+      requireNumber: data.require_number,
+      requireSpecialChar: data.require_special_char,
+      createdAt: new Date(data.created_at),
+      updatedAt: new Date(data.updated_at),
+      updatedBy: data.updated_by
+    }
+  },
+
+  async getDefault(): Promise<PasswordRequirements> {
+    return {
+      id: 'default',
+      organisationId: 'default',
+      minLength: 8,
+      requireUppercase: true,
+      requireLowercase: true,
+      requireNumber: true,
+      requireSpecialChar: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+  },
+
+  async update(organisationId: string, userId: string, updates: {
+    minLength?: number
+    requireUppercase?: boolean
+    requireLowercase?: boolean
+    requireNumber?: boolean
+    requireSpecialChar?: boolean
+  }): Promise<PasswordRequirements> {
+    const updateData: any = {
+      updated_by: userId,
+      updated_at: new Date().toISOString()
+    }
+
+    if (updates.minLength !== undefined) updateData.min_length = updates.minLength
+    if (updates.requireUppercase !== undefined) updateData.require_uppercase = updates.requireUppercase
+    if (updates.requireLowercase !== undefined) updateData.require_lowercase = updates.requireLowercase
+    if (updates.requireNumber !== undefined) updateData.require_number = updates.requireNumber
+    if (updates.requireSpecialChar !== undefined) updateData.require_special_char = updates.requireSpecialChar
+
+    const { data, error } = await supabase
+      .from('password_requirements')
+      .update(updateData)
+      .eq('organisation_id', organisationId)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    return {
+      id: data.id,
+      organisationId: data.organisation_id,
+      minLength: data.min_length,
+      requireUppercase: data.require_uppercase,
+      requireLowercase: data.require_lowercase,
+      requireNumber: data.require_number,
+      requireSpecialChar: data.require_special_char,
+      createdAt: new Date(data.created_at),
+      updatedAt: new Date(data.updated_at),
+      updatedBy: data.updated_by
+    }
+  },
+
+  async create(organisationId: string, userId: string, settings?: {
+    minLength?: number
+    requireUppercase?: boolean
+    requireLowercase?: boolean
+    requireNumber?: boolean
+    requireSpecialChar?: boolean
+  }): Promise<PasswordRequirements> {
+    const { data, error } = await supabase
+      .from('password_requirements')
+      .insert([{
+        organisation_id: organisationId,
+        min_length: settings?.minLength ?? 8,
+        require_uppercase: settings?.requireUppercase ?? true,
+        require_lowercase: settings?.requireLowercase ?? true,
+        require_number: settings?.requireNumber ?? true,
+        require_special_char: settings?.requireSpecialChar ?? true,
+        updated_by: userId
+      }])
+      .select()
+      .single()
+
+    if (error) throw error
+
+    return {
+      id: data.id,
+      organisationId: data.organisation_id,
+      minLength: data.min_length,
+      requireUppercase: data.require_uppercase,
+      requireLowercase: data.require_lowercase,
+      requireNumber: data.require_number,
+      requireSpecialChar: data.require_special_char,
+      createdAt: new Date(data.created_at),
+      updatedAt: new Date(data.updated_at),
+      updatedBy: data.updated_by
     }
   }
 }

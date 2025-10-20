@@ -1,16 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Mail, ArrowRight, CheckCircle, AlertCircle, User, Lock, Eye, EyeOff, Check, X } from 'lucide-react';
 import { Button } from '../common/Button';
+import { passwordRequirementsService } from '../../services/database';
+import { validatePassword, getDefaultPasswordRequirements } from '../../utils/passwordValidation';
+import type { PasswordRequirements } from '../../types/auth';
 
 interface SignupFormProps {
   onSignup: (email: string) => Promise<void>;
   onSignupWithPassword: (username: string, email: string, password: string) => Promise<void>;
   onSwitchToLogin: () => void;
-}
-
-interface PasswordRequirement {
-  label: string;
-  test: (password: string) => boolean;
 }
 
 export function SignupForm({ onSignup, onSignupWithPassword, onSwitchToLogin }: SignupFormProps) {
@@ -24,25 +22,28 @@ export function SignupForm({ onSignup, onSignupWithPassword, onSwitchToLogin }: 
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [pwdRequirements, setPwdRequirements] = useState<PasswordRequirements>(getDefaultPasswordRequirements());
 
-  const passwordRequirements: PasswordRequirement[] = [
-    { label: 'At least 8 characters long', test: (pwd) => pwd.length >= 8 },
-    { label: 'Contains at least one uppercase letter', test: (pwd) => /[A-Z]/.test(pwd) },
-    { label: 'Contains at least one lowercase letter', test: (pwd) => /[a-z]/.test(pwd) },
-    { label: 'Contains at least one number', test: (pwd) => /[0-9]/.test(pwd) },
-    { label: 'Contains at least one special character (!@#$%^&*)', test: (pwd) => /[!@#$%^&*(),.?":{}|<>]/.test(pwd) }
-  ];
+  useEffect(() => {
+    const loadRequirements = async () => {
+      try {
+        const reqs = await passwordRequirementsService.getDefault();
+        setPwdRequirements(reqs);
+      } catch (err) {
+        console.error('Error loading password requirements:', err);
+      }
+    };
+    loadRequirements();
+  }, []);
 
   const passwordValidation = useMemo(() => {
+    const validation = validatePassword(password, pwdRequirements);
     return {
-      requirements: passwordRequirements.map(req => ({
-        label: req.label,
-        met: req.test(password)
-      })),
-      allMet: passwordRequirements.every(req => req.test(password)),
+      requirements: validation.requirements,
+      allMet: validation.isValid,
       passwordsMatch: password === confirmPassword && confirmPassword.length > 0
     };
-  }, [password, confirmPassword]);
+  }, [password, confirmPassword, pwdRequirements]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

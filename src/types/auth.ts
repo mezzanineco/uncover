@@ -139,6 +139,19 @@ export interface PDFExport {
   lastDownloadedAt?: Date;
 }
 
+export interface PasswordRequirements {
+  id: string;
+  organisationId: string;
+  minLength: number;
+  requireUppercase: boolean;
+  requireLowercase: boolean;
+  requireNumber: boolean;
+  requireSpecialChar: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  updatedBy?: string;
+}
+
 interface AuthState {
   user: User | null;
   organisation: Organisation | null;

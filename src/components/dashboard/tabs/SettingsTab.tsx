@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
-import { 
-  User, 
-  Building, 
-  CreditCard, 
+import {
+  User,
+  Building,
+  CreditCard,
   Save,
   Upload,
   ExternalLink,
   Shield,
   Bell,
   Globe,
-  Download
+  Download,
+  Key
 } from 'lucide-react';
 import { Button } from '../../common/Button';
 import type { User as UserType, Organisation, OrganisationMember } from '../../../types/auth';
 import { hasPermission } from '../../../types/auth';
+import { PasswordRequirementsManager } from '../../admin/PasswordRequirementsManager';
 
 interface SettingsTabProps {
   user: UserType;
@@ -22,7 +24,7 @@ interface SettingsTabProps {
 }
 
 export function SettingsTab({ user, organisation, member }: SettingsTabProps) {
-  const [activeSection, setActiveSection] = useState<'profile' | 'organisation' | 'billing' | 'security'>('profile');
+  const [activeSection, setActiveSection] = useState<'profile' | 'organisation' | 'billing' | 'security' | 'password'>('profile');
   
   const [profileForm, setProfileForm] = useState({
     name: user.name || '',
@@ -62,6 +64,7 @@ export function SettingsTab({ user, organisation, member }: SettingsTabProps) {
     { id: 'organisation', label: 'Organisation', icon: Building, permission: 'VIEW_ORGANISATION' as const },
     { id: 'billing', label: 'Billing', icon: CreditCard, permission: 'MANAGE_ORGANISATION' as const },
     { id: 'security', label: 'Security', icon: Shield },
+    { id: 'password', label: 'Password Policy', icon: Key, permission: 'MANAGE_ORGANISATION' as const },
   ];
 
   const visibleSections = sections.filter(section => 
@@ -307,6 +310,16 @@ export function SettingsTab({ user, organisation, member }: SettingsTabProps) {
     </div>
   );
 
+  const renderPasswordPolicySection = () => (
+    <div className="space-y-6">
+      <PasswordRequirementsManager
+        organisationId={organisation.id}
+        userId={user.id}
+        userRole={member.role}
+      />
+    </div>
+  );
+
   const renderActiveSection = () => {
     switch (activeSection) {
       case 'profile':
@@ -317,6 +330,8 @@ export function SettingsTab({ user, organisation, member }: SettingsTabProps) {
         return renderBillingSection();
       case 'security':
         return renderSecuritySection();
+      case 'password':
+        return renderPasswordPolicySection();
       default:
         return renderProfileSection();
     }

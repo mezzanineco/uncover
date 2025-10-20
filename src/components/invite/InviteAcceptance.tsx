@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Mail, CheckCircle, XCircle, Loader2, UserPlus, Check, X } from 'lucide-react';
 import { Button } from '../common/Button';
-import { inviteService, userService, memberService } from '../../services/database';
+import { inviteService, userService, memberService, passwordRequirementsService } from '../../services/database';
 import { supabase } from '../../lib/supabase';
+import { validatePassword, getDefaultPasswordRequirements } from '../../utils/passwordValidation';
+import type { PasswordRequirements } from '../../types/auth';
 
 interface InviteAcceptanceProps {
   token: string;
@@ -22,11 +24,6 @@ interface InviteData {
   assessmentName?: string;
 }
 
-interface PasswordRequirement {
-  label: string;
-  test: (password: string) => boolean;
-}
-
 export function InviteAcceptance({ token, onSuccess }: InviteAcceptanceProps) {
   const [loading, setLoading] = useState(true);
   const [invite, setInvite] = useState<InviteData | null>(null);
@@ -38,25 +35,16 @@ export function InviteAcceptance({ token, onSuccess }: InviteAcceptanceProps) {
     confirmPassword: ''
   });
   const [isNewUser, setIsNewUser] = useState(false);
-
-  const passwordRequirements: PasswordRequirement[] = [
-    { label: 'At least 8 characters long', test: (pwd) => pwd.length >= 8 },
-    { label: 'Contains at least one uppercase letter', test: (pwd) => /[A-Z]/.test(pwd) },
-    { label: 'Contains at least one lowercase letter', test: (pwd) => /[a-z]/.test(pwd) },
-    { label: 'Contains at least one number', test: (pwd) => /[0-9]/.test(pwd) },
-    { label: 'Contains at least one special character (!@#$%^&*)', test: (pwd) => /[!@#$%^&*(),.?":{}|<>]/.test(pwd) }
-  ];
+  const [pwdRequirements, setPwdRequirements] = useState<PasswordRequirements>(getDefaultPasswordRequirements());
 
   const passwordValidation = useMemo(() => {
+    const validation = validatePassword(newUserForm.password, pwdRequirements);
     return {
-      requirements: passwordRequirements.map(req => ({
-        label: req.label,
-        met: req.test(newUserForm.password)
-      })),
-      allMet: passwordRequirements.every(req => req.test(newUserForm.password)),
+      requirements: validation.requirements,
+      allMet: validation.isValid,
       passwordsMatch: newUserForm.password === newUserForm.confirmPassword && newUserForm.confirmPassword.length > 0
     };
-  }, [newUserForm.password, newUserForm.confirmPassword]);
+  }, [newUserForm.password, newUserForm.confirmPassword, pwdRequirements]);
 
   useEffect(() => {
     loadInvite();
@@ -114,6 +102,15 @@ export function InviteAcceptance({ token, onSuccess }: InviteAcceptanceProps) {
       } catch (userCheckError) {
         console.warn('Could not check for existing user, assuming new user:', userCheckError);
         setIsNewUser(true);
+      }
+
+      try {
+        const orgReqs = await passwordRequirementsService.getByOrganisation(data.organisation_id);
+        if (orgReqs) {
+          setPwdRequirements(orgReqs);
+        }
+      } catch (reqsError) {
+        console.warn('Could not load password requirements, using defaults:', reqsError);
       }
     } catch (err) {
       console.error('Error loading invite:', err);
