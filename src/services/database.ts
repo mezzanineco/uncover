@@ -30,6 +30,17 @@ export const userService = {
     return data
   },
 
+  async getUserById(id: string) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (error) throw error
+    return data
+  },
+
   async getUserByEmail(email: string) {
     const { data, error } = await supabase
       .from('users')

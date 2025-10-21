@@ -63,19 +63,35 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const loadUserData = async (userId: string, email: string) => {
     try {
-      console.log('Loading user data for:', email);
-      // Get user data
-      let user = await userService.getUserByEmail(email);
+      console.log('Loading user data for:', email, 'with ID:', userId);
+
+      // First, check if user already exists by ID (handles previous failed attempts)
+      let user = await userService.getUserById(userId);
 
       if (!user) {
-        // Create user if doesn't exist
+        // User not found by ID, try to create
         console.log('User not found in database, creating...');
-        user = await userService.createUser({
-          id: userId,
-          email,
-          name: email.split('@')[0]
-        });
-        console.log('User created in database:', user.id);
+        try {
+          user = await userService.createUser({
+            id: userId,
+            email,
+            name: email.split('@')[0]
+          });
+          console.log('User created in database:', user.id);
+        } catch (createError: any) {
+          // If creation fails due to duplicate key, the user might exist already
+          // This can happen if there was a race condition or previous partial signup
+          console.log('Error creating user, checking if already exists:', createError.message);
+          user = await userService.getUserById(userId);
+
+          if (!user) {
+            // Still not found, throw the original error
+            throw createError;
+          }
+          console.log('User found after creation error:', user.id);
+        }
+      } else {
+        console.log('User already exists in database:', user.id);
       }
 
       // Get user's organisation memberships
@@ -404,11 +420,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       if (error) {
         console.error('Supabase signup error:', error);
+
+        // If user already exists, try to sign them in instead
+        if (error.message?.toLowerCase().includes('already registered')) {
+          throw new Error('This email is already registered. Please sign in instead.');
+        }
+
         throw new Error(error.message || 'Failed to create account');
       }
 
       if (data.user) {
-        console.log('User created in Supabase, loading user data...');
+        console.log('User created in Supabase Auth, loading user data...');
+        console.log('Auth user ID:', data.user.id);
         await loadUserData(data.user.id, email);
         return;
       }
