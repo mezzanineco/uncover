@@ -8,10 +8,13 @@ When users clicked "Create Account" on the signup form, nothing happened. The fo
 ### 1. Missing Database RLS Policy
 The `users` table was missing an INSERT policy for authenticated users. When Supabase Auth successfully created an auth user, the app tried to create a corresponding database record but was blocked by Row Level Security.
 
-### 2. Silent Error Handling
+### 2. User ID Mismatch
+The `createUser` function didn't pass the auth user's ID when creating the database record. This caused the auto-generated UUID to not match `auth.uid()`, violating RLS policies that require `id = auth.uid()`.
+
+### 3. Silent Error Handling
 When `loadUserData()` encountered errors creating database records, it would catch the error, log it to console, and set `isLoading: false` without propagating the error back to the signup form. The user would see no feedback.
 
-### 3. Incomplete Error Handling in Signup
+### 4. Incomplete Error Handling in Signup
 The `signupWithPassword` function didn't properly validate the Supabase auth response or handle error cases explicitly.
 
 ## Solution Implemented
@@ -26,12 +29,52 @@ CREATE POLICY "Authenticated users can insert own record"
   ON users
   FOR INSERT
   TO authenticated
-  WITH CHECK (true);
+  WITH CHECK (id = auth.uid());
 ```
 
-This allows authenticated users (who have just signed up with Supabase Auth) to create their user record in the database.
+This allows authenticated users to create their user record in the database, but only if the record's `id` matches their `auth.uid()`. This ensures users can only create records for themselves.
 
 ### 2. Enhanced Error Handling
+**File:** `src/components/auth/AuthProvider.tsx`
+
+**Updated `signupWithPassword` function:**
+- Added explicit error checking for Supabase auth response
+- Improved error messages
+- Added console logging for debugging
+- Properly throws errors that get caught by SignupForm
+
+**Updated `loadUserData` function:**
+- Added detailed console logging at each step
+- Now throws errors instead of silently catching them
+- Better visibility into what's happening during user creation
+
+### 2. Fixed User ID Handling
+**Files:** `src/services/database.ts`, `src/components/auth/AuthProvider.tsx`
+
+**Updated `createUser` to accept user ID:**
+```typescript
+async createUser(userData: {
+  id?: string  // Added this
+  email: string
+  name?: string
+  username?: string
+}) {
+  // ...
+}
+```
+
+**Updated `loadUserData` to pass auth user ID:**
+```typescript
+user = await userService.createUser({
+  id: userId,  // Pass the Supabase Auth user ID
+  email,
+  name: email.split('@')[0]
+});
+```
+
+This ensures the database user record uses the same ID as the Supabase Auth user, satisfying the RLS policy.
+
+### 3. Enhanced Error Handling
 **File:** `src/components/auth/AuthProvider.tsx`
 
 **Updated `signupWithPassword` function:**

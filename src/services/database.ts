@@ -15,6 +15,7 @@ import type {
 // User operations
 export const userService = {
   async createUser(userData: {
+    id?: string
     email: string
     name?: string
     username?: string
@@ -24,7 +25,7 @@ export const userService = {
       .insert([userData])
       .select()
       .single()
-    
+
     if (error) throw error
     return data
   },

@@ -71,6 +71,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Create user if doesn't exist
         console.log('User not found in database, creating...');
         user = await userService.createUser({
+          id: userId,
           email,
           name: email.split('@')[0]
         });
