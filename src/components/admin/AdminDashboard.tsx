@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { AdminLayout } from './AdminLayout';
 import { Dashboard } from './Dashboard';
 import { QuestionBankManager } from './QuestionBankManager';
@@ -6,14 +6,23 @@ import { SessionManager } from './SessionManager';
 import { ReportsView } from './ReportsView';
 import { AdminSettings } from './AdminSettings';
 import { loadQuestionsFromCSV } from '../../data/csvLoader';
+import { AuthContext } from '../../contexts/AuthContext';
 import type { User, QuestionBank, Session } from '../../types/admin';
 import type { ParsedQuestion } from '../../types';
 
 export function AdminDashboard() {
   const [currentView, setCurrentView] = useState<'dashboard' | 'question-banks' | 'sessions' | 'reports' | 'settings'>('dashboard');
-  
-  // Mock current user - in production this would come from auth context
-  const currentUser: User = {
+  const { user, organisation, member, logout } = useContext(AuthContext);
+
+  // Use auth context for user data, fallback to mock if not available
+  const currentUser: User = user ? {
+    id: user.id,
+    name: user.name || user.email,
+    email: user.email,
+    role: (member?.role as 'super_admin' | 'facilitator' | 'client_admin') || 'super_admin',
+    createdAt: user.createdAt,
+    lastLoginAt: user.lastLoginAt || new Date()
+  } : {
     id: '550e8400-e29b-41d4-a716-446655440001',
     name: 'Admin User',
     email: 'admin@example.com',
@@ -22,8 +31,8 @@ export function AdminDashboard() {
     lastLoginAt: new Date()
   };
 
-  // Mock organisation ID - in production this would come from auth context
-  const organisationId = '550e8400-e29b-41d4-a716-446655440010';
+  // Use auth context for organisation ID, fallback to mock if not available
+  const organisationId = organisation?.id || '550e8400-e29b-41d4-a716-446655440010';
   
   const [sessions] = useState<Session[]>([
     {
@@ -267,8 +276,13 @@ export function AdminDashboard() {
   };
 
   const handleLogout = () => {
-    console.log('Logging out');
-    // In production, this would clear auth and redirect
+    if (logout) {
+      logout();
+      // Redirect to landing page
+      window.location.href = '/';
+    } else {
+      console.log('Logout function not available');
+    }
   };
 
   const renderCurrentView = () => {
