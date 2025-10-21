@@ -63,18 +63,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const loadUserData = async (userId: string, email: string) => {
     try {
+      console.log('Loading user data for:', email);
       // Get user data
       let user = await userService.getUserByEmail(email);
-      
+
       if (!user) {
         // Create user if doesn't exist
+        console.log('User not found in database, creating...');
         user = await userService.createUser({
           email,
           name: email.split('@')[0]
         });
+        console.log('User created in database:', user.id);
       }
 
       // Get user's organisation memberships
+      console.log('Looking for organisation memberships...');
       const { data: memberships } = await supabase
         .from('organisation_members')
         .select(`
@@ -86,6 +90,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         .limit(1);
 
       if (memberships && memberships.length > 0) {
+        console.log('Found existing organisation membership');
         const membership = memberships[0];
         const organisation = membership.organisations;
 
@@ -128,11 +133,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
         });
       } else {
         // User has no organisation, create a default one
+        console.log('No organisation found, creating default organisation...');
         await createDefaultOrganisation(user);
       }
     } catch (error) {
       console.error('Error loading user data:', error);
       setAuthState(prev => ({ ...prev, isLoading: false }));
+      throw error;
     }
   };
 
@@ -394,12 +401,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       });
 
-      if (data.user && !error) {
+      if (error) {
+        console.error('Supabase signup error:', error);
+        throw new Error(error.message || 'Failed to create account');
+      }
+
+      if (data.user) {
+        console.log('User created in Supabase, loading user data...');
         await loadUserData(data.user.id, email);
         return;
       }
 
       // Fallback to demo signup for development
+      console.log('No Supabase user created, using demo signup');
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Mock user creation - in production, this would create user in your backend

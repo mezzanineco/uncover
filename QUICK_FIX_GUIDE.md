@@ -30,6 +30,24 @@ Fixed "Authentication required. Please sign in again." error when saving passwor
 
 ---
 
+## ✅ FIXED: User Signup Not Working
+
+### What Was Done
+Fixed signup form where clicking "Create Account" did nothing. Added missing database policy and improved error handling.
+
+**Files Changed:**
+- `src/components/auth/AuthProvider.tsx`
+- `supabase/migrations/20251021010001_add_users_insert_policy.sql`
+
+### How to Test
+1. Go to signup page (click "Get Started")
+2. Enter username, email, and password
+3. Click "Create Account"
+4. Should see loading state then automatically sign in
+5. Should land on User Dashboard
+
+---
+
 ## Email Invite Links
 
 ### What's the Problem?
