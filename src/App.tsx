@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { AuthProvider } from './components/auth/AuthProvider';
 import { useAuth } from './contexts/AuthContext';
 import { AuthLayout } from './components/auth/AuthLayout';
@@ -244,9 +245,12 @@ function AppContent() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading...</p>
+        <div className="text-center max-w-md px-4">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-800 font-medium mb-2">Loading your workspace...</p>
+          <p className="text-gray-500 text-sm">
+            This should only take a moment. If this persists, try refreshing the page.
+          </p>
         </div>
       </div>
     );
@@ -372,9 +376,11 @@ function AppContent() {
 
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

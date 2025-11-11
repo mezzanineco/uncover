@@ -1,4 +1,3 @@
-import { supabase } from '../lib/supabase'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { getInviteUrl, validateInviteUrl } from '../utils/appUrl'
 import type {

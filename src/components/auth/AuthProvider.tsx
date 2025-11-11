@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { userService, organisationService, memberService } from '../../services/database';
 import type { User, Organisation, OrganisationMember } from '../../types/auth';
@@ -9,6 +9,8 @@ interface AuthProviderProps {
   children: React.ReactNode;
 }
 
+const LOADING_TIMEOUT = 10000;
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
@@ -18,47 +20,99 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isAuthenticated: false
   });
 
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isLoadingRef = useRef(true);
+
   useEffect(() => {
+    loadingTimeoutRef.current = setTimeout(() => {
+      if (isLoadingRef.current) {
+        console.warn('Loading timeout reached, forcing load complete');
+        setAuthState(prev => ({ ...prev, isLoading: false }));
+        isLoadingRef.current = false;
+      }
+    }, LOADING_TIMEOUT);
+
     checkExistingSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        await loadUserData(session.user.id, session.user.email!);
-      } else if (event === 'SIGNED_OUT') {
-        setAuthState({
-          user: null,
-          organisation: null,
-          member: null,
-          isLoading: false,
-          isAuthenticated: false
-        });
+      try {
+        if (event === 'SIGNED_IN' && session?.user) {
+          await loadUserData(session.user.id, session.user.email!);
+        } else if (event === 'SIGNED_OUT') {
+          setAuthState({
+            user: null,
+            organisation: null,
+            member: null,
+            isLoading: false,
+            isAuthenticated: false
+          });
+          isLoadingRef.current = false;
+        }
+      } catch (error) {
+        console.error('Auth state change error:', error);
+        setAuthState(prev => ({ ...prev, isLoading: false }));
+        isLoadingRef.current = false;
       }
     });
 
     return () => {
       subscription.unsubscribe();
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
     };
   }, []);
 
   const checkExistingSession = async () => {
     try {
-      // Check for existing Supabase session
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        await loadUserData(session.user.id, session.user.email!);
-      } else {
-        // Fallback to localStorage for demo purposes
+      if (!isSupabaseConfigured) {
+        console.warn('Supabase not configured, checking localStorage');
         const token = localStorage.getItem('auth_token');
         if (token) {
           await loadDemoUserData();
         } else {
           setAuthState(prev => ({ ...prev, isLoading: false }));
+          isLoadingRef.current = false;
+        }
+        return;
+      }
+
+      const sessionPromise = supabase.auth.getSession();
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Session check timeout')), 5000)
+      );
+
+      const { data: { session } } = await Promise.race([
+        sessionPromise,
+        timeoutPromise
+      ]) as any;
+
+      if (session?.user) {
+        await loadUserData(session.user.id, session.user.email!);
+      } else {
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+          await loadDemoUserData();
+        } else {
+          setAuthState(prev => ({ ...prev, isLoading: false }));
+          isLoadingRef.current = false;
         }
       }
     } catch (error) {
       console.error('Session check failed:', error);
-      setAuthState(prev => ({ ...prev, isLoading: false }));
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        try {
+          await loadDemoUserData();
+        } catch (demoError) {
+          console.error('Demo data load failed:', demoError);
+          setAuthState(prev => ({ ...prev, isLoading: false }));
+          isLoadingRef.current = false;
+        }
+      } else {
+        setAuthState(prev => ({ ...prev, isLoading: false }));
+        isLoadingRef.current = false;
+      }
     }
   };
 
@@ -66,11 +120,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       console.log('Loading user data for:', email, 'with ID:', userId);
 
-      // First, check if user already exists by ID (handles previous failed attempts)
       let user = await userService.getUserById(userId);
 
       if (!user) {
-        // User not found by ID, try to create
         console.log('User not found in database, creating...');
         try {
           user = await userService.createUser({
@@ -80,13 +132,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
           });
           console.log('User created in database:', user.id);
         } catch (createError: any) {
-          // If creation fails due to duplicate key, the user might exist already
-          // This can happen if there was a race condition or previous partial signup
           console.log('Error creating user, checking if already exists:', createError.message);
           user = await userService.getUserById(userId);
 
           if (!user) {
-            // Still not found, throw the original error
             throw createError;
           }
           console.log('User found after creation error:', user.id);
@@ -95,7 +144,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         console.log('User already exists in database:', user.id);
       }
 
-      // Get user's organisation memberships
       console.log('Looking for organisation memberships...');
       const { data: memberships } = await supabase
         .from('organisation_members')
@@ -149,66 +197,72 @@ export function AuthProvider({ children }: AuthProviderProps) {
           isLoading: false,
           isAuthenticated: true
         });
+        isLoadingRef.current = false;
       } else {
-        // User has no organisation, create a default one
         console.log('No organisation found, creating default organisation...');
         await createDefaultOrganisation(user);
       }
     } catch (error) {
       console.error('Error loading user data:', error);
       setAuthState(prev => ({ ...prev, isLoading: false }));
+      isLoadingRef.current = false;
       throw error;
     }
   };
 
   const loadDemoUserData = async () => {
-    // Keep existing demo functionality for development
-    const mockUser: User = {
-      id: '550e8400-e29b-41d4-a716-446655440001',
-      email: 'demo@example.com',
-      name: 'Demo User',
-      username: 'demo',
-      emailVerified: true,
-      createdAt: new Date('2024-01-01'),
-      lastLoginAt: new Date(),
-      status: 'active'
-    };
+    try {
+      const mockUser: User = {
+        id: '550e8400-e29b-41d4-a716-446655440001',
+        email: 'demo@example.com',
+        name: 'Demo User',
+        username: 'demo',
+        emailVerified: true,
+        createdAt: new Date('2024-01-01'),
+        lastLoginAt: new Date(),
+        status: 'active'
+      };
 
-    const mockOrganisation: Organisation = {
-      id: '550e8400-e29b-41d4-a716-446655440010',
-      name: 'Demo Corporation',
-      slug: 'demo-corp',
-      createdAt: new Date('2024-01-01'),
-      createdBy: '550e8400-e29b-41d4-a716-446655440001',
-      settings: {
-        allowGuestParticipants: true,
-        requireConsent: true,
-        dataRetentionDays: 365
-      }
-    };
+      const mockOrganisation: Organisation = {
+        id: '550e8400-e29b-41d4-a716-446655440010',
+        name: 'Demo Corporation',
+        slug: 'demo-corp',
+        createdAt: new Date('2024-01-01'),
+        createdBy: '550e8400-e29b-41d4-a716-446655440001',
+        settings: {
+          allowGuestParticipants: true,
+          requireConsent: true,
+          dataRetentionDays: 365
+        }
+      };
 
-    const mockMember: OrganisationMember = {
-      id: '550e8400-e29b-41d4-a716-446655440020',
-      userId: '550e8400-e29b-41d4-a716-446655440001',
-      organisationId: '550e8400-e29b-41d4-a716-446655440010',
-      role: 'user_admin',
-      status: 'active',
-      joinedAt: new Date('2024-01-01'),
-      lastActiveAt: new Date()
-    };
+      const mockMember: OrganisationMember = {
+        id: '550e8400-e29b-41d4-a716-446655440020',
+        userId: '550e8400-e29b-41d4-a716-446655440001',
+        organisationId: '550e8400-e29b-41d4-a716-446655440010',
+        role: 'user_admin',
+        status: 'active',
+        joinedAt: new Date('2024-01-01'),
+        lastActiveAt: new Date()
+      };
 
-    setAuthState({
-      user: mockUser,
-      organisation: mockOrganisation,
-      member: mockMember,
-      isLoading: false,
-      isAuthenticated: true
-    });
+      setAuthState({
+        user: mockUser,
+        organisation: mockOrganisation,
+        member: mockMember,
+        isLoading: false,
+        isAuthenticated: true
+      });
+      isLoadingRef.current = false;
+    } catch (error) {
+      console.error('Error loading demo user data:', error);
+      setAuthState(prev => ({ ...prev, isLoading: false }));
+      isLoadingRef.current = false;
+    }
   };
 
   const createDefaultOrganisation = async (user: any) => {
     try {
-      // Create default organisation
       const organisation = await organisationService.createOrganisation({
         name: `${user.name || user.email.split('@')[0]}'s Organisation`,
         slug: `${user.email.split('@')[0]}-org-${Date.now()}`,
@@ -217,7 +271,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         size: 'small'
       });
 
-      // Add user as admin
       const membership = await memberService.addMember({
         userId: user.id,
         organisationId: organisation.id,
@@ -261,9 +314,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         isLoading: false,
         isAuthenticated: true
       });
+      isLoadingRef.current = false;
     } catch (error) {
       console.error('Error creating default organisation:', error);
       setAuthState(prev => ({ ...prev, isLoading: false }));
+      isLoadingRef.current = false;
     }
   };
 
