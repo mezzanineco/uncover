@@ -142,11 +142,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
           user = await Promise.race([createUserPromise, createUserTimeout]) as any;
           console.log('User created in database:', user.id);
         } catch (createError: any) {
-          console.log('Error creating user, checking if already exists:', createError.message);
-          user = await userService.getUserById(userId);
+          console.log('Error creating user:', createError.message);
+
+          if (createError.message?.includes('duplicate key') ||
+              createError.message?.includes('already exists') ||
+              createError.code === '23505') {
+            console.log('User already exists, fetching existing record...');
+            user = await userService.getUserById(userId);
+
+            if (!user) {
+              console.log('Could not fetch user by ID, trying by email...');
+              user = await userService.getUserByEmail(email);
+            }
+          }
 
           if (!user) {
-            throw createError;
+            throw new Error('Failed to create or retrieve user record. Please contact support.');
           }
           console.log('User found after creation error:', user.id);
         }
@@ -505,8 +516,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (error) {
         console.error('Supabase signup error:', error);
 
-        if (error.message?.toLowerCase().includes('already registered')) {
-          throw new Error('This email is already registered. Please sign in instead.');
+        if (error.message?.toLowerCase().includes('already registered') ||
+            error.message?.toLowerCase().includes('user already exists')) {
+
+          console.log('User already exists in Auth, attempting to sign in...');
+          try {
+            const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+              email,
+              password
+            });
+
+            if (signInError) {
+              throw new Error('This email is already registered. Please sign in with your existing password.');
+            }
+
+            if (signInData.user) {
+              await loadUserData(signInData.user.id, email);
+              return;
+            }
+          } catch (signInAttemptError) {
+            throw new Error('This email is already registered. Please use the sign in form instead.');
+          }
         }
 
         throw new Error(error.message || 'Failed to create account');
