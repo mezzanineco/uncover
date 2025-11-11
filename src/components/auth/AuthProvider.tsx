@@ -3,6 +3,7 @@ import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { userService, organisationService, memberService } from '../../services/database';
 import type { User, Organisation, OrganisationMember } from '../../types/auth';
 import { AuthContext, type AuthContextType, type AuthState } from '../../contexts/AuthContext';
+import { getAppUrl } from '../../utils/appUrl';
 
 interface AuthProviderProps {
   children: React.ReactNode;
@@ -414,7 +415,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         email,
         password,
         options: {
-          data: { username, name: username }
+          data: { username, name: username },
+          emailRedirectTo: `${getAppUrl()}/auth/confirm`
         }
       });
 
@@ -430,8 +432,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       if (data.user) {
-        console.log('User created in Supabase Auth, loading user data...');
+        console.log('User created in Supabase Auth');
         console.log('Auth user ID:', data.user.id);
+
+        // Check if email confirmation is required
+        // When email confirmation is enabled, identities array is empty until verified
+        const needsEmailConfirmation = !data.user.identities || data.user.identities.length === 0;
+
+        if (needsEmailConfirmation) {
+          console.log('Email confirmation required - user must verify email before accessing platform');
+          // Throw a special error that signals email confirmation is needed
+          const confirmError = new Error('EMAIL_CONFIRMATION_REQUIRED');
+          (confirmError as any).email = email;
+          (confirmError as any).needsConfirmation = true;
+          throw confirmError;
+        }
+
+        // If no confirmation needed, proceed with normal flow
+        console.log('No email confirmation required, loading user data...');
         await loadUserData(data.user.id, email);
         return;
       }
@@ -544,15 +562,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const resendConfirmationEmail = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: {
+          emailRedirectTo: `${getAppUrl()}/auth/confirm`
+        }
+      });
+
+      if (error) {
+        console.error('Error resending confirmation email:', error);
+        throw new Error(error.message || 'Failed to resend confirmation email');
+      }
+
+      console.log('Confirmation email resent successfully');
+    } catch (error) {
+      throw error;
+    }
+  };
+
   const logout = () => {
     // Sign out from Supabase if configured
     if (isSupabaseConfigured) {
       supabase.auth.signOut();
     }
-    
+
     // Clear local storage
     localStorage.removeItem('auth_token');
-    
+
     setAuthState({
       user: null,
       organisation: null,
@@ -567,7 +606,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     login,
     signup,
     logout,
-    verifyMagicLink
+    verifyMagicLink,
+    resendConfirmationEmail
   };
 
   return (

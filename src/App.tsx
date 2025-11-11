@@ -148,13 +148,25 @@ function AppContent() {
     setCurrentAssessmentId(null);
   };
 
-  // Check for invite token in URL on mount
+  // Check for invite token or email confirmation in URL on mount
   useEffect(() => {
     const path = window.location.pathname;
+    const params = new URLSearchParams(window.location.search);
+
+    // Handle invite links
     const inviteMatch = path.match(/^\/invite\/([a-f0-9-]+)$/i);
     if (inviteMatch) {
       setInviteToken(inviteMatch[1]);
       setCurrentState('invite');
+      return;
+    }
+
+    // Handle email confirmation callback
+    if (path === '/auth/confirm') {
+      console.log('Email confirmation callback detected');
+      // The auth state change listener in AuthProvider will handle the session
+      // Just clear the URL parameters to clean up
+      window.history.replaceState({}, document.title, '/');
     }
   }, []);
 
