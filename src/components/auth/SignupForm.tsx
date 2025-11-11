@@ -29,6 +29,8 @@ export function SignupForm({ onSignup, onSignupWithPassword, onSwitchToLogin }: 
   const [resendLoading, setResendLoading] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [checkingVerification, setCheckingVerification] = useState(false);
+  const [verificationChecked, setVerificationChecked] = useState(false);
 
   useEffect(() => {
     const loadRequirements = async () => {
@@ -49,6 +51,17 @@ export function SignupForm({ onSignup, onSignupWithPassword, onSwitchToLogin }: 
     }
   }, [resendCooldown]);
 
+  useEffect(() => {
+    // Auto-check verification status every 5 seconds when on email verification screen
+    if (isSuccess && successType === 'email-verification') {
+      const checkInterval = setInterval(() => {
+        handleCheckVerification(true);
+      }, 5000);
+
+      return () => clearInterval(checkInterval);
+    }
+  }, [isSuccess, successType]);
+
   const handleResendEmail = async () => {
     if (!auth.resendConfirmationEmail || resendCooldown > 0) return;
 
@@ -65,6 +78,47 @@ export function SignupForm({ onSignup, onSignupWithPassword, onSwitchToLogin }: 
       setError(err.message || 'Failed to resend email. Please try again.');
     } finally {
       setResendLoading(false);
+    }
+  };
+
+  const handleCheckVerification = async (silent = false) => {
+    if (!silent) {
+      setCheckingVerification(true);
+    }
+    setError('');
+
+    try {
+      // Import supabase client
+      const { supabase } = await import('../../lib/supabase');
+
+      // Check current session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError) throw sessionError;
+
+      if (session?.user) {
+        // User is verified and signed in!
+        console.log('User verified successfully!');
+        if (!silent) {
+          setVerificationChecked(true);
+        }
+        // The AuthProvider will handle the state update automatically
+        // Just show a brief success message
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      } else if (!silent) {
+        // Only show error message if user manually clicked the button
+        setError('Email not verified yet. Please check your inbox and click the confirmation link.');
+      }
+    } catch (err: any) {
+      if (!silent) {
+        setError(err.message || 'Failed to check verification status. Please try again.');
+      }
+    } finally {
+      if (!silent) {
+        setCheckingVerification(false);
+      }
     }
   };
 
@@ -182,71 +236,91 @@ export function SignupForm({ onSignup, onSignupWithPassword, onSwitchToLogin }: 
   if (isSuccess && successType === 'email-verification') {
     return (
       <div className="text-center space-y-6">
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-          <Mail className="w-8 h-8 text-green-600" />
+        <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto transition-colors ${
+          verificationChecked ? 'bg-green-100' : 'bg-blue-100'
+        }`}>
+          {verificationChecked ? (
+            <CheckCircle className="w-8 h-8 text-green-600" />
+          ) : (
+            <Mail className="w-8 h-8 text-blue-600" />
+          )}
         </div>
 
         <div>
           <h3 className="text-2xl font-bold text-gray-900 mb-2">
-            Account Created Successfully!
+            {verificationChecked ? 'Email Verified!' : 'Check Your Email'}
           </h3>
-          <p className="text-gray-600 mb-4">
-            We've sent a confirmation email to <strong className="text-gray-900">{email}</strong>
+          <p className="text-gray-600 mb-2">
+            {verificationChecked ? (
+              <>Redirecting you to the platform...</>
+            ) : (
+              <>
+                We've sent a confirmation email to{' '}
+                <strong className="text-gray-900 break-all">{email}</strong>
+              </>
+            )}
           </p>
+          {!verificationChecked && (
+            <p className="text-sm text-gray-500">
+              Click the link in your email to verify your account and get started
+            </p>
+          )}
         </div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left space-y-3">
-          <div className="flex items-start space-x-3">
-            <CheckCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-blue-900">Email Verification Required</p>
-              <p className="text-sm text-blue-700 mt-1">
-                Before you can begin your first assessment, you'll need to verify your email address.
-              </p>
+        {!verificationChecked && (
+          <>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left space-y-3">
+              <div className="flex items-start space-x-3">
+                <CheckCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-blue-900">Email Verification Required</p>
+                  <p className="text-sm text-blue-700 mt-1">
+                    Before you can access the platform, you'll need to verify your email address by clicking the link we sent you.
+                  </p>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-left space-y-3">
-          <p className="text-sm font-semibold text-gray-900">Next Steps:</p>
-          <ol className="space-y-2 text-sm text-gray-700">
-            <li className="flex items-start space-x-2">
-              <span className="font-semibold text-blue-600 flex-shrink-0">1.</span>
-              <span>Check your inbox for an email from us</span>
-            </li>
-            <li className="flex items-start space-x-2">
-              <span className="font-semibold text-blue-600 flex-shrink-0">2.</span>
-              <span>Click the confirmation link in the email</span>
-            </li>
-            <li className="flex items-start space-x-2">
-              <span className="font-semibold text-blue-600 flex-shrink-0">3.</span>
-              <span>You'll be automatically redirected to the platform</span>
-            </li>
-            <li className="flex items-start space-x-2">
-              <span className="font-semibold text-blue-600 flex-shrink-0">4.</span>
-              <span>Start creating your first assessment!</span>
-            </li>
-          </ol>
-        </div>
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-left space-y-3">
+              <p className="text-sm font-semibold text-gray-900">What to do next:</p>
+              <ol className="space-y-2 text-sm text-gray-700">
+                <li className="flex items-start space-x-2">
+                  <span className="font-semibold text-blue-600 flex-shrink-0">1.</span>
+                  <span>Open your email inbox at <strong>{email}</strong></span>
+                </li>
+                <li className="flex items-start space-x-2">
+                  <span className="font-semibold text-blue-600 flex-shrink-0">2.</span>
+                  <span>Look for an email from our platform (check spam if needed)</span>
+                </li>
+                <li className="flex items-start space-x-2">
+                  <span className="font-semibold text-blue-600 flex-shrink-0">3.</span>
+                  <span>Click the "Confirm your email" button in the email</span>
+                </li>
+                <li className="flex items-start space-x-2">
+                  <span className="font-semibold text-blue-600 flex-shrink-0">4.</span>
+                  <span>You'll be automatically signed in and redirected</span>
+                </li>
+              </ol>
+            </div>
 
-        <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
-          <Clock className="w-4 h-4" />
-          <span>Email should arrive within 5 minutes</span>
-        </div>
+            <div className="flex items-center justify-center space-x-2 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <Clock className="w-4 h-4" />
+              <span>Email should arrive within 2-5 minutes</span>
+            </div>
 
-        {resendSuccess && (
-          <div className="flex items-center justify-center space-x-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-3">
-            <CheckCircle className="w-4 h-4" />
-            <span>Confirmation email sent successfully!</span>
-          </div>
-        )}
+            {resendSuccess && (
+              <div className="flex items-center justify-center space-x-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-3">
+                <CheckCircle className="w-4 h-4" />
+                <span>Confirmation email sent successfully!</span>
+              </div>
+            )}
 
-        {error && (
-          <div className="flex items-center justify-center space-x-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
-            <AlertCircle className="w-4 h-4" />
-            <span>{error}</span>
-          </div>
-        )}
+            {error && (
+              <div className="flex items-center justify-center space-x-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
+                <AlertCircle className="w-4 h-4" />
+                <span>{error}</span>
+              </div>
+            )}
 
         <div className="pt-4 border-t border-gray-200 space-y-4">
           <div className="text-sm text-gray-600 space-y-2">
@@ -258,40 +332,60 @@ export function SignupForm({ onSignup, onSignupWithPassword, onSwitchToLogin }: 
               </li>
               <li className="flex items-start space-x-2">
                 <span className="text-gray-400">•</span>
-                <span>Make sure {email} is correct</span>
+                <span>Make sure <strong>{email}</strong> is correct</span>
               </li>
               <li className="flex items-start space-x-2">
                 <span className="text-gray-400">•</span>
-                <span>Wait a few minutes and check again</span>
+                <span>Wait a few minutes for the email to arrive</span>
               </li>
             </ul>
           </div>
 
-          <Button
-            onClick={handleResendEmail}
-            disabled={resendLoading || resendCooldown > 0}
-            variant="outline"
-            className="w-full"
-          >
-            {resendLoading ? (
-              <div className="flex items-center">
-                <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin mr-2" />
-                Sending...
-              </div>
-            ) : resendCooldown > 0 ? (
-              <div className="flex items-center">
-                <Clock className="w-4 h-4 mr-2" />
-                Resend in {resendCooldown}s
-              </div>
-            ) : (
-              <div className="flex items-center">
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Resend Confirmation Email
-              </div>
-            )}
-          </Button>
+          <div className="space-y-2">
+            <Button
+              onClick={() => handleCheckVerification(false)}
+              disabled={checkingVerification}
+              className="w-full bg-blue-600 hover:bg-blue-700"
+            >
+              {checkingVerification ? (
+                <div className="flex items-center">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  Checking...
+                </div>
+              ) : (
+                <div className="flex items-center">
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  I've Verified My Email
+                </div>
+              )}
+            </Button>
 
-          <div className="text-center">
+            <Button
+              onClick={handleResendEmail}
+              disabled={resendLoading || resendCooldown > 0}
+              variant="outline"
+              className="w-full"
+            >
+              {resendLoading ? (
+                <div className="flex items-center">
+                  <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin mr-2" />
+                  Sending...
+                </div>
+              ) : resendCooldown > 0 ? (
+                <div className="flex items-center">
+                  <Clock className="w-4 h-4 mr-2" />
+                  Resend in {resendCooldown}s
+                </div>
+              ) : (
+                <div className="flex items-center">
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Resend Confirmation Email
+                </div>
+              )}
+            </Button>
+          </div>
+
+          <div className="text-center pt-2">
             <button
               onClick={onSwitchToLogin}
               className="text-sm text-blue-600 hover:underline font-medium"
@@ -300,6 +394,8 @@ export function SignupForm({ onSignup, onSignupWithPassword, onSwitchToLogin }: 
             </button>
           </div>
         </div>
+        </>
+        )}
       </div>
     );
   }

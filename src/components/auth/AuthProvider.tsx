@@ -36,9 +36,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       try {
+        console.log('Auth state change event:', event, 'Session user:', session?.user?.email);
+
         if (event === 'SIGNED_IN' && session?.user) {
+          console.log('User signed in, loading user data...');
           await loadUserData(session.user.id, session.user.email!);
+        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+          console.log('Token refreshed, ensuring user data is loaded...');
+          // Check if we already have user data, if not, load it
+          if (!authState.user || !authState.isAuthenticated) {
+            await loadUserData(session.user.id, session.user.email!);
+          }
         } else if (event === 'SIGNED_OUT') {
+          console.log('User signed out');
           setAuthState({
             user: null,
             organisation: null,
@@ -516,8 +526,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (error) {
         console.error('Supabase signup error:', error);
 
+        // Handle specific error cases with user-friendly messages
         if (error.message?.toLowerCase().includes('already registered') ||
-            error.message?.toLowerCase().includes('user already exists')) {
+            error.message?.toLowerCase().includes('user already exists') ||
+            error.message?.toLowerCase().includes('email address already registered')) {
 
           console.log('User already exists in Auth, attempting to sign in...');
           try {
@@ -527,10 +539,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
             });
 
             if (signInError) {
-              throw new Error('This email is already registered. Please sign in with your existing password.');
+              throw new Error('This email is already registered. Please sign in with your existing password, or use "Forgot Password" if you need to reset it.');
             }
 
             if (signInData.user) {
+              console.log('Successfully signed in with existing account');
               await loadUserData(signInData.user.id, email);
               return;
             }
@@ -539,7 +552,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
           }
         }
 
-        throw new Error(error.message || 'Failed to create account');
+        // Handle rate limiting
+        if (error.message?.toLowerCase().includes('rate limit') ||
+            error.message?.toLowerCase().includes('too many requests')) {
+          throw new Error('Too many signup attempts. Please wait a few minutes and try again.');
+        }
+
+        // Handle invalid email format
+        if (error.message?.toLowerCase().includes('invalid email')) {
+          throw new Error('Please enter a valid email address.');
+        }
+
+        // Handle weak password
+        if (error.message?.toLowerCase().includes('password') &&
+            (error.message?.toLowerCase().includes('weak') ||
+             error.message?.toLowerCase().includes('too short'))) {
+          throw new Error('Password does not meet requirements. Please use a stronger password.');
+        }
+
+        // Generic error with the actual message
+        throw new Error(error.message || 'Failed to create account. Please try again or contact support.');
       }
 
       if (data.user) {

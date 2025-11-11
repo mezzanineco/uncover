@@ -165,9 +165,29 @@ function AppContent() {
     // Handle email confirmation callback
     if (path === '/auth/confirm') {
       console.log('Email confirmation callback detected');
+
+      // Check for error in URL params
+      const error = params.get('error');
+      const errorDescription = params.get('error_description');
+
+      if (error) {
+        console.error('Email confirmation error:', error, errorDescription);
+        // Show error state and redirect to login
+        alert(`Email confirmation failed: ${errorDescription || error}. Please try signing in or contact support.`);
+        window.history.replaceState({}, document.title, '/');
+        setCurrentState('auth');
+        setAuthMode('login');
+        return;
+      }
+
       // The auth state change listener in AuthProvider will handle the session
-      // Just clear the URL parameters to clean up
-      window.history.replaceState({}, document.title, '/');
+      // Show a brief success message before redirect
+      console.log('Email confirmed successfully! Loading your dashboard...');
+
+      // Clear the URL parameters after a brief delay to allow auth state to update
+      setTimeout(() => {
+        window.history.replaceState({}, document.title, '/');
+      }, 100);
     }
   }, []);
 
