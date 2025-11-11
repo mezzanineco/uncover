@@ -120,16 +120,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       console.log('Loading user data for:', email, 'with ID:', userId);
 
-      let user = await userService.getUserById(userId);
+      const getUserPromise = userService.getUserById(userId);
+      const getUserTimeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Database query timeout')), 5000)
+      );
+
+      let user = await Promise.race([getUserPromise, getUserTimeout]) as any;
 
       if (!user) {
         console.log('User not found in database, creating...');
         try {
-          user = await userService.createUser({
+          const createUserPromise = userService.createUser({
             id: userId,
             email,
             name: email.split('@')[0]
           });
+          const createUserTimeout = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Create user timeout')), 5000)
+          );
+
+          user = await Promise.race([createUserPromise, createUserTimeout]) as any;
           console.log('User created in database:', user.id);
         } catch (createError: any) {
           console.log('Error creating user, checking if already exists:', createError.message);
@@ -145,7 +155,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       console.log('Looking for organisation memberships...');
-      const { data: memberships } = await supabase
+      const membershipPromise = supabase
         .from('organisation_members')
         .select(`
           *,
@@ -154,6 +164,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
         .eq('user_id', user.id)
         .eq('status', 'active')
         .limit(1);
+
+      const membershipTimeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Membership query timeout')), 5000)
+      );
+
+      const { data: memberships } = await Promise.race([
+        membershipPromise,
+        membershipTimeout
+      ]) as any;
 
       if (memberships && memberships.length > 0) {
         console.log('Found existing organisation membership');
@@ -465,8 +484,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const signupWithPassword = async (username: string, email: string, password: string) => {
     try {
-      // Try Supabase auth first
-      const { data, error } = await supabase.auth.signUp({
+      const signupPromise = supabase.auth.signUp({
         email,
         password,
         options: {
@@ -475,10 +493,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       });
 
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Signup request timed out')), 15000)
+      );
+
+      const { data, error } = await Promise.race([
+        signupPromise,
+        timeoutPromise
+      ]) as any;
+
       if (error) {
         console.error('Supabase signup error:', error);
 
-        // If user already exists, try to sign them in instead
         if (error.message?.toLowerCase().includes('already registered')) {
           throw new Error('This email is already registered. Please sign in instead.');
         }
@@ -490,22 +516,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
         console.log('User created in Supabase Auth');
         console.log('Auth user ID:', data.user.id);
 
-        // Check if email confirmation is required
-        // When email confirmation is enabled, identities array is empty until verified
         const needsEmailConfirmation = !data.user.identities || data.user.identities.length === 0;
 
         if (needsEmailConfirmation) {
           console.log('Email confirmation required - user must verify email before accessing platform');
-          // Throw a special error that signals email confirmation is needed
           const confirmError = new Error('EMAIL_CONFIRMATION_REQUIRED');
           (confirmError as any).email = email;
           (confirmError as any).needsConfirmation = true;
           throw confirmError;
         }
 
-        // If no confirmation needed, proceed with normal flow
         console.log('No email confirmation required, loading user data...');
-        await loadUserData(data.user.id, email);
+
+        const loadUserPromise = loadUserData(data.user.id, email);
+        const loadUserTimeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Failed to load user data - please refresh the page')), 10000)
+        );
+
+        try {
+          await Promise.race([loadUserPromise, loadUserTimeout]);
+        } catch (loadError) {
+          console.error('Error loading user data after signup:', loadError);
+          throw new Error('Account created but failed to load profile. Please refresh the page.');
+        }
         return;
       }
 
