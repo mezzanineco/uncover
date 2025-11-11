@@ -504,24 +504,42 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const signupWithPassword = async (username: string, email: string, password: string) => {
+    console.log('==========================================');
+    console.log('SIGNUP STARTED');
+    console.log('==========================================');
+    console.log('signupWithPassword called with:', { username, email });
+    console.log('Supabase configured:', isSupabaseConfigured);
+
     try {
+      console.log('Creating Supabase signup request...');
+      const appUrl = getAppUrl();
+      console.log('App URL for redirect:', appUrl);
+
+      // Add connection test
+      if (!isSupabaseConfigured) {
+        throw new Error('Supabase is not properly configured. Please check your environment variables.');
+      }
+
       const signupPromise = supabase.auth.signUp({
         email,
         password,
         options: {
           data: { username, name: username },
-          emailRedirectTo: `${getAppUrl()}/auth/confirm`
+          emailRedirectTo: `${appUrl}/auth/confirm`
         }
       });
 
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Signup request timed out')), 15000)
+        setTimeout(() => reject(new Error('Signup request timed out after 15 seconds. Please check your connection and try again.')), 15000)
       );
 
+      console.log('Waiting for Supabase response (max 15 seconds)...');
       const { data, error } = await Promise.race([
         signupPromise,
         timeoutPromise
       ]) as any;
+
+      console.log('Supabase response received:', { hasData: !!data, hasError: !!error, userId: data?.user?.id });
 
       if (error) {
         console.error('Supabase signup error:', error);
@@ -654,6 +672,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         isAuthenticated: true
       });
     } catch (error) {
+      console.error('signupWithPassword error:', error);
+      // Re-throw the error so the form can handle it
       throw error;
     }
   };

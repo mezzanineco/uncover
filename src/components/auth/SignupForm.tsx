@@ -170,24 +170,33 @@ export function SignupForm({ onSignup, onSignupWithPassword, onSwitchToLogin }: 
     setError('');
 
     try {
+      console.log('Starting signup process...', { signupMethod, email, username });
+
       if (signupMethod === 'magic-link') {
         await onSignup(email);
         setSuccessType('magic-link');
         setIsSuccess(true);
       } else {
+        console.log('Calling onSignupWithPassword...');
         await onSignupWithPassword(username, email, password);
+        console.log('onSignupWithPassword completed successfully');
         // If we reach here without error, signup succeeded without email confirmation
         // User will be automatically logged in via AuthProvider
       }
     } catch (err: any) {
+      console.error('Signup error caught:', err);
+
       // Check if this is the email confirmation required signal
       if (err.message === 'EMAIL_CONFIRMATION_REQUIRED') {
+        console.log('Email confirmation required, showing verification screen');
         setSuccessType('email-verification');
         setIsSuccess(true);
       } else {
+        console.error('Signup failed with error:', err.message);
         setError(err.message || 'Something went wrong. Please try again.');
       }
     } finally {
+      console.log('Signup process finished, setting loading to false');
       setIsLoading(false);
     }
   };
