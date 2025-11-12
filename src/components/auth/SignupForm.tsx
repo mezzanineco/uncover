@@ -179,20 +179,31 @@ export function SignupForm({ onSignup, onSignupWithPassword, onSwitchToLogin }: 
       } else {
         console.log('Calling onSignupWithPassword...');
         await onSignupWithPassword(username, email, password);
-        console.log('onSignupWithPassword completed successfully');
+        console.log('onSignupWithPassword completed successfully - no error thrown');
+
         // If we reach here without error, signup succeeded without email confirmation
         // User will be automatically logged in via AuthProvider
+        // HOWEVER: If email confirmation is enabled on Supabase but we didn't detect it,
+        // show the verification screen as a fallback
+        console.log('⚠️ Signup completed but no email confirmation error was thrown');
+        console.log('This likely means email confirmation is required but was not detected');
+        console.log('Showing email verification screen as a safety measure');
+
+        setSuccessType('email-verification');
+        setIsSuccess(true);
       }
     } catch (err: any) {
       console.error('Signup error caught:', err);
+      console.error('Error message:', err.message);
+      console.error('Error type:', typeof err.message);
 
       // Check if this is the email confirmation required signal
       if (err.message === 'EMAIL_CONFIRMATION_REQUIRED') {
-        console.log('Email confirmation required, showing verification screen');
+        console.log('✅ Email confirmation required, showing verification screen');
         setSuccessType('email-verification');
         setIsSuccess(true);
       } else {
-        console.error('Signup failed with error:', err.message);
+        console.error('❌ Signup failed with error:', err.message);
         setError(err.message || 'Something went wrong. Please try again.');
       }
     } finally {

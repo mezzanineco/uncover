@@ -595,18 +595,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (data.user) {
         console.log('User created in Supabase Auth');
         console.log('Auth user ID:', data.user.id);
+        console.log('User email confirmed:', data.user.email_confirmed_at);
+        console.log('User identities:', data.user.identities);
+        console.log('Session exists:', !!data.session);
 
-        const needsEmailConfirmation = !data.user.identities || data.user.identities.length === 0;
+        // Check multiple signals for email confirmation requirement
+        const needsEmailConfirmation =
+          !data.session ||
+          !data.user.email_confirmed_at ||
+          !data.user.identities ||
+          data.user.identities.length === 0;
+
+        console.log('Needs email confirmation:', needsEmailConfirmation);
 
         if (needsEmailConfirmation) {
-          console.log('Email confirmation required - user must verify email before accessing platform');
+          console.log('✉️ EMAIL CONFIRMATION REQUIRED - user must verify email before accessing platform');
+          console.log('Throwing EMAIL_CONFIRMATION_REQUIRED error to show verification screen');
+
           const confirmError = new Error('EMAIL_CONFIRMATION_REQUIRED');
           (confirmError as any).email = email;
           (confirmError as any).needsConfirmation = true;
           throw confirmError;
         }
 
-        console.log('No email confirmation required, loading user data...');
+        console.log('✅ No email confirmation required, loading user data...');
 
         const loadUserPromise = loadUserData(data.user.id, email);
         const loadUserTimeout = new Promise((_, reject) =>
