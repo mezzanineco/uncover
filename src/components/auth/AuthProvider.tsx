@@ -39,7 +39,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
         console.log('Auth state change event:', event, 'Session user:', session?.user?.email);
 
         if (event === 'SIGNED_IN' && session?.user) {
-          console.log('User signed in, loading user data...');
+          // Only process sign-in if email is confirmed
+          // This prevents premature authentication when user just signed up
+          // but hasn't verified their email yet
+          if (!session.user.email_confirmed_at) {
+            console.log('⚠️ SIGNED_IN event detected but email not confirmed - ignoring to keep user on verification screen');
+            return;
+          }
+
+          console.log('User signed in with confirmed email, loading user data...');
           await loadUserData(session.user.id, session.user.email!);
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
           console.log('Token refreshed, ensuring user data is loaded...');
@@ -98,6 +106,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
       ]) as any;
 
       if (session?.user) {
+        // Only load user data if email is confirmed
+        // This prevents auto-login when user just signed up but hasn't verified email
+        if (!session.user.email_confirmed_at) {
+          console.log('⚠️ Session found but email not confirmed - user needs to verify email first');
+          setAuthState(prev => ({ ...prev, isLoading: false }));
+          isLoadingRef.current = false;
+          return;
+        }
+
+        console.log('Session found with confirmed email, loading user data...');
         await loadUserData(session.user.id, session.user.email!);
       } else {
         const token = localStorage.getItem('auth_token');

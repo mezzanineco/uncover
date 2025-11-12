@@ -54,11 +54,17 @@ export function SignupForm({ onSignup, onSignupWithPassword, onSwitchToLogin }: 
   useEffect(() => {
     // Auto-check verification status every 5 seconds when on email verification screen
     if (isSuccess && successType === 'email-verification') {
+      console.log('Setting up auto-verification check (every 5 seconds)');
+
       const checkInterval = setInterval(() => {
+        console.log('Running auto-verification check...');
         handleCheckVerification(true);
       }, 5000);
 
-      return () => clearInterval(checkInterval);
+      return () => {
+        console.log('Cleaning up auto-verification check interval');
+        clearInterval(checkInterval);
+      };
     }
   }, [isSuccess, successType]);
 
@@ -94,24 +100,40 @@ export function SignupForm({ onSignup, onSignupWithPassword, onSwitchToLogin }: 
       // Check current session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-      if (sessionError) throw sessionError;
+      if (sessionError) {
+        console.log('Session check error:', sessionError);
+        throw sessionError;
+      }
+
+      console.log('Verification check - Session exists:', !!session, 'Silent mode:', silent);
 
       if (session?.user) {
         // User is verified and signed in!
-        console.log('User verified successfully!');
+        console.log('✅ User verified successfully! Session found.');
+
+        // Only reload if this is not a silent check (i.e., user clicked the button)
         if (!silent) {
+          console.log('User manually checked - showing success and reloading...');
           setVerificationChecked(true);
-        }
-        // The AuthProvider will handle the state update automatically
-        // Just show a brief success message
-        setTimeout(() => {
+          // Show success message briefly then reload
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
+        } else {
+          // Silent check found a session - just reload immediately
+          console.log('Auto-check found verified session - reloading...');
           window.location.reload();
-        }, 1000);
-      } else if (!silent) {
-        // Only show error message if user manually clicked the button
-        setError('Email not verified yet. Please check your inbox and click the confirmation link.');
+        }
+      } else {
+        // No session yet - email not verified
+        console.log('No session found - email not verified yet');
+        if (!silent) {
+          // Only show error message if user manually clicked the button
+          setError('Email not verified yet. Please check your inbox and click the confirmation link.');
+        }
       }
     } catch (err: any) {
+      console.error('Verification check error:', err);
       if (!silent) {
         setError(err.message || 'Failed to check verification status. Please try again.');
       }
