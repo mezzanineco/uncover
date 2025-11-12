@@ -212,7 +212,7 @@ export function LoginForm({ onLogin, onLoginWithPassword, onSwitchToSignup }: Lo
           {isLoading ? (
             <div className="flex items-center">
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-              Sending magic link...
+              {loginMethod === 'magic-link' ? 'Sending magic link...' : 'Signing in...'}
             </div>
           ) : (
             <>
