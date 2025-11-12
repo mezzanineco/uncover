@@ -224,22 +224,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
           user = await Promise.race([createUserPromise, createUserTimeout]) as any;
           console.log('User created in database:', user.id);
         } catch (createError: any) {
-          console.log('Error creating user:', createError.message);
+          console.log('Error creating user:', {
+            message: createError.message,
+            code: createError.code,
+            details: createError.details,
+            hint: createError.hint
+          });
 
-          if (createError.message?.includes('duplicate key') ||
-              createError.message?.includes('already exists') ||
-              createError.code === '23505') {
-            console.log('User already exists, fetching existing record...');
-            user = await userService.getUserById(userId);
-
-            if (!user) {
-              console.log('Could not fetch user by ID, trying by email...');
-              user = await userService.getUserByEmail(email);
-            }
-          }
+          // Try to fetch existing user regardless of error type
+          console.log('Attempting to fetch existing user...');
+          user = await userService.getUserById(userId);
 
           if (!user) {
-            throw new Error('Failed to create or retrieve user record. Please contact support.');
+            console.log('Could not fetch user by ID, trying by email...');
+            user = await userService.getUserByEmail(email);
+          }
+
+          // If we still don't have a user and it's a duplicate key error, that's really strange
+          if (!user) {
+            const errorDetails = createError.message || createError.details || 'Unknown error';
+            console.error('Failed to create or retrieve user after error:', errorDetails);
+            throw new Error(`Failed to create or retrieve user record: ${errorDetails}. Please contact support.`);
           }
           console.log('User found after creation error:', user.id);
         }
