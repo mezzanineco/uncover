@@ -19,7 +19,7 @@ type AppState = 'landing' | 'auth' | 'assessment' | 'results' | 'invite';
 type AuthMode = 'signup' | 'login' | 'verify';
 
 function AppContent() {
-  const { user, organisation, member, isLoading, isAuthenticated, login, signup, logout, verifyMagicLink } = useAuth();
+  const { user, organisation, member, isLoading, isAuthenticated, isAwaitingEmailVerification, login, signup, logout, verifyMagicLink } = useAuth();
   const [currentState, setCurrentState] = useState<AppState>('landing');
   const [authMode, setAuthMode] = useState<AuthMode>('signup');
   const [verificationToken, setVerificationToken] = useState('');
@@ -262,7 +262,7 @@ function AppContent() {
     };
   }, []);
 
-  if (isLoading) {
+  if (isLoading && !isAwaitingEmailVerification) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center max-w-md px-4">

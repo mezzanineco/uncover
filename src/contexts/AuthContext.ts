@@ -7,6 +7,7 @@ export interface AuthState {
   member: OrganisationMember | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isAwaitingEmailVerification: boolean;
 }
 
 export interface AuthContextType extends AuthState {

@@ -111,6 +111,9 @@ export function SignupForm({ onSignup, onSignupWithPassword, onSwitchToLogin }: 
         // User is verified and signed in!
         console.log('✅ User verified successfully! Session found.');
 
+        // Clear the verification flag since email is now confirmed
+        sessionStorage.removeItem('awaiting_email_verification');
+
         // Only reload if this is not a silent check (i.e., user clicked the button)
         if (!silent) {
           console.log('User manually checked - showing success and reloading...');
@@ -222,6 +225,7 @@ export function SignupForm({ onSignup, onSignupWithPassword, onSwitchToLogin }: 
       // Check if this is the email confirmation required signal
       if (err.message === 'EMAIL_CONFIRMATION_REQUIRED') {
         console.log('✅ Email confirmation required, showing verification screen');
+        sessionStorage.setItem('awaiting_email_verification', 'true');
         setSuccessType('email-verification');
         setIsSuccess(true);
       } else {

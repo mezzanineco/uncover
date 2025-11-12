@@ -17,7 +17,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     organisation: null,
     member: null,
     isLoading: true,
-    isAuthenticated: false
+    isAuthenticated: false,
+    isAwaitingEmailVerification: false
   });
 
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -45,10 +46,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
           if (!session.user.email_confirmed_at) {
             console.log('⚠️ SIGNED_IN event detected but email not confirmed - ignoring to keep user on verification screen');
             // CRITICAL: Set loading to false so user doesn't see loading screen
+            sessionStorage.setItem('awaiting_email_verification', 'true');
             setAuthState(prev => ({
               ...prev,
               isLoading: false,
-              isAuthenticated: false
+              isAuthenticated: false,
+              isAwaitingEmailVerification: true
             }));
             isLoadingRef.current = false;
             return;
@@ -64,22 +67,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
           }
         } else if (event === 'SIGNED_OUT') {
           console.log('User signed out');
+          sessionStorage.removeItem('awaiting_email_verification');
           setAuthState({
             user: null,
             organisation: null,
             member: null,
             isLoading: false,
-            isAuthenticated: false
+            isAuthenticated: false,
+            isAwaitingEmailVerification: false
           });
           isLoadingRef.current = false;
         } else if (session?.user && !session.user.email_confirmed_at) {
           // Catch-all: Any other auth event while email is unconfirmed
           // Keep user on verification screen by ensuring loading is false
           console.log(`⚠️ Auth event "${event}" while email unconfirmed - ensuring loading screen doesn't show`);
+          sessionStorage.setItem('awaiting_email_verification', 'true');
           setAuthState(prev => ({
             ...prev,
             isLoading: false,
-            isAuthenticated: false
+            isAuthenticated: false,
+            isAwaitingEmailVerification: true
           }));
           isLoadingRef.current = false;
         }
@@ -112,6 +119,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return;
       }
 
+      // Check sessionStorage flag for verification screen
+      const isOnVerificationScreen = sessionStorage.getItem('awaiting_email_verification') === 'true';
+      if (isOnVerificationScreen) {
+        console.log('User is on email verification screen, checking session...');
+      }
+
       const sessionPromise = supabase.auth.getSession();
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Session check timeout')), 5000)
@@ -127,10 +140,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // This prevents auto-login when user just signed up but hasn't verified email
         if (!session.user.email_confirmed_at) {
           console.log('⚠️ Session found but email not confirmed - user needs to verify email first');
-          setAuthState(prev => ({ ...prev, isLoading: false }));
+          sessionStorage.setItem('awaiting_email_verification', 'true');
+          setAuthState(prev => ({
+            ...prev,
+            isLoading: false,
+            isAwaitingEmailVerification: true
+          }));
           isLoadingRef.current = false;
           return;
         }
+
+        // Email is confirmed, clear the verification flag
+        sessionStorage.removeItem('awaiting_email_verification');
 
         console.log('Session found with confirmed email, loading user data...');
         await loadUserData(session.user.id, session.user.email!);
@@ -235,6 +256,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const membership = memberships[0];
         const organisation = membership.organisations;
 
+        sessionStorage.removeItem('awaiting_email_verification');
         setAuthState({
           user: {
             id: user.id,
@@ -270,7 +292,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
             lastActiveAt: membership.last_active_at ? new Date(membership.last_active_at) : undefined
           },
           isLoading: false,
-          isAuthenticated: true
+          isAuthenticated: true,
+          isAwaitingEmailVerification: false
         });
         isLoadingRef.current = false;
       } else {
@@ -326,7 +349,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         organisation: mockOrganisation,
         member: mockMember,
         isLoading: false,
-        isAuthenticated: true
+        isAuthenticated: true,
+        isAwaitingEmailVerification: false
       });
       isLoadingRef.current = false;
     } catch (error) {
@@ -352,6 +376,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         role: 'user_admin'
       });
 
+      sessionStorage.removeItem('awaiting_email_verification');
       setAuthState({
         user: {
           id: user.id,
@@ -387,7 +412,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           lastActiveAt: membership.last_active_at ? new Date(membership.last_active_at) : undefined
         },
         isLoading: false,
-        isAuthenticated: true
+        isAuthenticated: true,
+        isAwaitingEmailVerification: false
       });
       isLoadingRef.current = false;
     } catch (error) {
@@ -519,9 +545,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
           organisation: mockOrganisation,
           member: mockMember,
           isLoading: false,
-          isAuthenticated: true
+          isAuthenticated: true,
+          isAwaitingEmailVerification: false
         });
-      
+
         // Store auth token
         localStorage.setItem('auth_token', 'mock-jwt-token');
     }
@@ -649,10 +676,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
           // CRITICAL: Ensure auth state is not loading and not authenticated
           // This prevents the loading screen from appearing while user is on verification screen
+          sessionStorage.setItem('awaiting_email_verification', 'true');
           setAuthState(prev => ({
             ...prev,
             isLoading: false,
             isAuthenticated: false,
+            isAwaitingEmailVerification: true,
             user: null,
             organisation: null,
             member: null
@@ -728,7 +757,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         organisation: mockOrganisation,
         member: mockMember,
         isLoading: false,
-        isAuthenticated: true
+        isAuthenticated: true,
+        isAwaitingEmailVerification: false
       });
     } catch (error) {
       console.error('signupWithPassword error:', error);
@@ -784,7 +814,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         organisation: mockOrganisation,
         member: mockMember,
         isLoading: false,
-        isAuthenticated: true
+        isAuthenticated: true,
+        isAwaitingEmailVerification: false
       });
     } catch (error) {
       throw new Error('Magic link verification failed');
@@ -826,7 +857,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       organisation: null,
       member: null,
       isLoading: false,
-      isAuthenticated: false
+      isAuthenticated: false,
+      isAwaitingEmailVerification: false
     });
   };
 
