@@ -44,6 +44,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
           // but hasn't verified their email yet
           if (!session.user.email_confirmed_at) {
             console.log('⚠️ SIGNED_IN event detected but email not confirmed - ignoring to keep user on verification screen');
+            // CRITICAL: Set loading to false so user doesn't see loading screen
+            setAuthState(prev => ({
+              ...prev,
+              isLoading: false,
+              isAuthenticated: false
+            }));
+            isLoadingRef.current = false;
             return;
           }
 
@@ -64,6 +71,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
             isLoading: false,
             isAuthenticated: false
           });
+          isLoadingRef.current = false;
+        } else if (session?.user && !session.user.email_confirmed_at) {
+          // Catch-all: Any other auth event while email is unconfirmed
+          // Keep user on verification screen by ensuring loading is false
+          console.log(`⚠️ Auth event "${event}" while email unconfirmed - ensuring loading screen doesn't show`);
+          setAuthState(prev => ({
+            ...prev,
+            isLoading: false,
+            isAuthenticated: false
+          }));
           isLoadingRef.current = false;
         }
       } catch (error) {
@@ -629,6 +646,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (needsEmailConfirmation) {
           console.log('✉️ EMAIL CONFIRMATION REQUIRED - user must verify email before accessing platform');
           console.log('Throwing EMAIL_CONFIRMATION_REQUIRED error to show verification screen');
+
+          // CRITICAL: Ensure auth state is not loading and not authenticated
+          // This prevents the loading screen from appearing while user is on verification screen
+          setAuthState(prev => ({
+            ...prev,
+            isLoading: false,
+            isAuthenticated: false,
+            user: null,
+            organisation: null,
+            member: null
+          }));
+          isLoadingRef.current = false;
 
           const confirmError = new Error('EMAIL_CONFIRMATION_REQUIRED');
           (confirmError as any).email = email;
