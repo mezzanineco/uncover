@@ -470,23 +470,48 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // In production, this would make an API call to send the magic link
   };
 
-  const loginWithPassword = async (username: string, password: string) => {
+  const loginWithPassword = async (emailOrUsername: string, password: string) => {
     try {
-      // Try Supabase auth first
+      console.log('Login attempt with:', emailOrUsername);
+
+      // Determine if input is email or username
+      let email = emailOrUsername;
+
+      // If it's not an email (no @ symbol), look up the email from username
+      if (!emailOrUsername.includes('@')) {
+        console.log('Input is username, looking up email...');
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('email')
+          .eq('username', emailOrUsername)
+          .maybeSingle();
+
+        if (userError || !userData) {
+          console.error('Username lookup failed:', userError);
+          throw new Error('Invalid username or password');
+        }
+
+        email = userData.email;
+        console.log('Found email for username:', email);
+      }
+
+      // Try Supabase auth with email
+      console.log('Attempting Supabase login with email:', email);
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: username.includes('@') ? username : `${username}@example.com`,
+        email,
         password
       });
 
       if (data.user && !error) {
+        console.log('Login successful, loading user data...');
         await loadUserData(data.user.id, data.user.email!);
         return;
       }
 
       // If Supabase auth fails, check for demo credentials
-      if (error && (username === 'demo' || username === 'super') && password === 'password') {
+      if (error && (emailOrUsername === 'demo' || emailOrUsername === 'super') && password === 'password') {
         // For demo mode, create a temporary Supabase session
-        await createDemoSupabaseSession(username);
+        await createDemoSupabaseSession(emailOrUsername);
       } else if (error) {
         throw new Error('Invalid username or password');
       }
