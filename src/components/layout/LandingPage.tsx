@@ -1,17 +1,38 @@
 import React from 'react';
 import { Button } from '../common/Button';
-import { Play, Users, BarChart3, FileText } from 'lucide-react';
+import { Play, Users, BarChart3, FileText, LogIn } from 'lucide-react';
 
 interface LandingPageProps {
   onStartAssessment: () => void;
   onAdminAccess?: () => void;
+  onSignIn?: () => void;
 }
 
-export function LandingPage({ onStartAssessment, onAdminAccess }: LandingPageProps) {
+export function LandingPage({ onStartAssessment, onAdminAccess, onSignIn }: LandingPageProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-amber-50">
+      {/* Header with Sign In */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <div className="flex justify-between items-center">
+          <div className="text-2xl font-bold text-gray-900">
+            Brand Archetype
+          </div>
+          {onSignIn && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onSignIn}
+              className="flex items-center gap-2"
+            >
+              <LogIn className="w-4 h-4" />
+              Sign In
+            </Button>
+          )}
+        </div>
+      </div>
+
       {/* Hero Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-16">
         <div className="text-center">
           <h1 className="text-5xl font-bold text-gray-900 mb-6 leading-tight">
             Discover Your Brand's

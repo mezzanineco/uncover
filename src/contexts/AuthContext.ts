@@ -16,6 +16,8 @@ export interface AuthContextType extends AuthState {
   logout: () => void;
   verifyMagicLink: (token: string) => Promise<void>;
   resendConfirmationEmail?: (email: string) => Promise<void>;
+  sendPasswordResetEmail: (email: string) => Promise<void>;
+  resetPassword: (newPassword: string) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);

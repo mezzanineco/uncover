@@ -6,9 +6,10 @@ interface LoginFormProps {
   onLogin: (email: string) => Promise<void>;
   onLoginWithPassword: (username: string, password: string) => Promise<void>;
   onSwitchToSignup: () => void;
+  onForgotPassword?: () => void;
 }
 
-export function LoginForm({ onLogin, onLoginWithPassword, onSwitchToSignup }: LoginFormProps) {
+export function LoginForm({ onLogin, onLoginWithPassword, onSwitchToSignup, onForgotPassword }: LoginFormProps) {
   const [loginMethod, setLoginMethod] = useState<'magic-link' | 'password'>('password');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -221,6 +222,18 @@ export function LoginForm({ onLogin, onLoginWithPassword, onSwitchToSignup }: Lo
             </>
           )}
         </Button>
+
+        {loginMethod === 'password' && onForgotPassword && (
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={onForgotPassword}
+              className="text-sm text-blue-600 hover:underline font-medium"
+            >
+              Forgot password?
+            </button>
+          </div>
+        )}
 
         <div className="text-center">
           <p className="text-sm text-gray-600">

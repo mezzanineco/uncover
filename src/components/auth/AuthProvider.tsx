@@ -934,13 +934,63 @@ export function AuthProvider({ children }: AuthProviderProps) {
     });
   };
 
+  const sendPasswordResetEmail = async (email: string) => {
+    try {
+      console.log('Sending password reset email to:', email);
+
+      if (!isSupabaseConfigured) {
+        throw new Error('Supabase is not properly configured. Please check your environment variables.');
+      }
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${getAppUrl()}/reset-password`
+      });
+
+      if (error) {
+        console.error('Error sending password reset email:', error);
+        throw new Error(error.message || 'Failed to send password reset email');
+      }
+
+      console.log('Password reset email sent successfully');
+    } catch (error) {
+      console.error('sendPasswordResetEmail error:', error);
+      throw error;
+    }
+  };
+
+  const resetPassword = async (newPassword: string) => {
+    try {
+      console.log('Resetting password...');
+
+      if (!isSupabaseConfigured) {
+        throw new Error('Supabase is not properly configured. Please check your environment variables.');
+      }
+
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) {
+        console.error('Error resetting password:', error);
+        throw new Error(error.message || 'Failed to reset password');
+      }
+
+      console.log('Password reset successfully');
+    } catch (error) {
+      console.error('resetPassword error:', error);
+      throw error;
+    }
+  };
+
   const value: AuthContextType = {
     ...authState,
     login,
     signup,
     logout,
     verifyMagicLink,
-    resendConfirmationEmail
+    resendConfirmationEmail,
+    sendPasswordResetEmail,
+    resetPassword
   };
 
   return (

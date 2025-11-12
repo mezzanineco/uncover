@@ -5,6 +5,8 @@ import { useAuth } from './contexts/AuthContext';
 import { AuthLayout } from './components/auth/AuthLayout';
 import { SignupForm } from './components/auth/SignupForm';
 import { LoginForm } from './components/auth/LoginForm';
+import { ForgotPasswordForm } from './components/auth/ForgotPasswordForm';
+import { ResetPasswordForm } from './components/auth/ResetPasswordForm';
 import { MagicLinkVerification } from './components/auth/MagicLinkVerification';
 import { UserDashboard } from './components/dashboard/UserDashboard';
 import { LandingPage } from './components/layout/LandingPage';
@@ -16,10 +18,10 @@ import { ASSESSMENT_CONFIG } from './data/questions';
 import type { AssessmentResult } from './types';
 
 type AppState = 'landing' | 'auth' | 'assessment' | 'results' | 'invite';
-type AuthMode = 'signup' | 'login' | 'verify';
+type AuthMode = 'signup' | 'login' | 'verify' | 'forgot-password' | 'reset-password';
 
 function AppContent() {
-  const { user, organisation, member, isLoading, isAuthenticated, isAwaitingEmailVerification, login, signup, logout, verifyMagicLink } = useAuth();
+  const { user, organisation, member, isLoading, isAuthenticated, isAwaitingEmailVerification, login, signup, logout, verifyMagicLink, sendPasswordResetEmail, resetPassword } = useAuth();
   const [currentState, setCurrentState] = useState<AppState>('landing');
   const [authMode, setAuthMode] = useState<AuthMode>('signup');
   const [verificationToken, setVerificationToken] = useState('');
@@ -159,6 +161,23 @@ function AppContent() {
     if (inviteMatch) {
       setInviteToken(inviteMatch[1]);
       setCurrentState('invite');
+      return;
+    }
+
+    // Handle password reset callback
+    if (path === '/reset-password') {
+      console.log('Password reset callback detected');
+      const type = params.get('type');
+
+      if (type === 'recovery') {
+        console.log('Valid password reset link detected');
+        setAuthMode('reset-password');
+        setCurrentState('auth');
+      } else {
+        console.error('Invalid password reset link');
+        alert('Invalid password reset link. Please request a new one.');
+        setCurrentState('landing');
+      }
       return;
     }
 
@@ -357,10 +376,29 @@ function AppContent() {
   }
 
   if (currentState === 'auth') {
+    const getAuthTitle = () => {
+      switch (authMode) {
+        case 'signup': return 'Create your account';
+        case 'login': return 'Welcome back';
+        case 'forgot-password': return 'Reset your password';
+        case 'reset-password': return 'Set new password';
+        case 'verify': return 'Verifying...';
+        default: return 'Welcome';
+      }
+    };
+
+    const getAuthSubtitle = () => {
+      switch (authMode) {
+        case 'signup': return 'Start discovering your brand archetype';
+        case 'login': return 'Sign in to your account';
+        default: return undefined;
+      }
+    };
+
     return (
       <AuthLayout
-        title={authMode === 'signup' ? 'Create your account' : authMode === 'login' ? 'Welcome back' : 'Verifying...'}
-        subtitle={authMode === 'signup' ? 'Start discovering your brand archetype' : authMode === 'login' ? 'Sign in to your account' : undefined}
+        title={getAuthTitle()}
+        subtitle={getAuthSubtitle()}
       >
         {authMode === 'signup' && (
           <SignupForm
@@ -374,6 +412,19 @@ function AppContent() {
             onLogin={handleLogin}
             onLoginWithPassword={handleLoginWithPassword}
             onSwitchToSignup={() => setAuthMode('signup')}
+            onForgotPassword={() => setAuthMode('forgot-password')}
+          />
+        )}
+        {authMode === 'forgot-password' && (
+          <ForgotPasswordForm
+            onSendResetLink={sendPasswordResetEmail}
+            onBackToLogin={() => setAuthMode('login')}
+          />
+        )}
+        {authMode === 'reset-password' && (
+          <ResetPasswordForm
+            onResetPassword={resetPassword}
+            onBackToLogin={() => setAuthMode('login')}
           />
         )}
         {authMode === 'verify' && (
@@ -410,9 +461,13 @@ function AppContent() {
   }
 
   return (
-    <LandingPage 
+    <LandingPage
       onStartAssessment={handleStartAssessment}
       onAdminAccess={() => setCurrentState('admin')}
+      onSignIn={() => {
+        setAuthMode('login');
+        setCurrentState('auth');
+      }}
     />
   );
 }
