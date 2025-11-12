@@ -165,16 +165,53 @@ function AppContent() {
     }
 
     // Handle password reset callback
+    // Supabase sends the token in the URL hash/fragment after redirect
     if (path === '/reset-password') {
       console.log('Password reset callback detected');
-      const type = params.get('type');
+      console.log('URL params:', params.toString());
+      console.log('URL hash:', window.location.hash);
 
-      if (type === 'recovery') {
-        console.log('Valid password reset link detected');
-        setAuthMode('reset-password');
-        setCurrentState('auth');
+      // Check both query params and hash for the type parameter
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const type = params.get('type') || hashParams.get('type');
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+
+      console.log('Type:', type);
+      console.log('Has access token:', !!accessToken);
+      console.log('Has refresh token:', !!refreshToken);
+
+      if (type === 'recovery' && accessToken) {
+        console.log('Valid password reset link detected with token');
+
+        // Verify the session with Supabase
+        (async () => {
+          try {
+            const { supabase } = await import('./lib/supabase');
+            const { error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || ''
+            });
+
+            if (error) {
+              console.error('Error setting session:', error);
+              alert('Invalid or expired reset link. Please request a new one.');
+              setCurrentState('landing');
+            } else {
+              console.log('Session verified, showing reset form');
+              setAuthMode('reset-password');
+              setCurrentState('auth');
+              // Clean up the URL
+              window.history.replaceState({}, '', '/reset-password');
+            }
+          } catch (err) {
+            console.error('Error verifying reset token:', err);
+            alert('Failed to verify reset link. Please try again.');
+            setCurrentState('landing');
+          }
+        })();
       } else {
-        console.error('Invalid password reset link');
+        console.error('Invalid password reset link - missing type or token');
         alert('Invalid password reset link. Please request a new one.');
         setCurrentState('landing');
       }

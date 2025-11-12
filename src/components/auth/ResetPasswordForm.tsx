@@ -42,6 +42,10 @@ export function ResetPasswordForm({ onResetPassword, onBackToLogin }: ResetPassw
     try {
       await onResetPassword(password);
       setIsSuccess(true);
+      // Auto-redirect to login after 3 seconds
+      setTimeout(() => {
+        onBackToLogin();
+      }, 3000);
     } catch (err: any) {
       setError(err.message || 'Failed to reset password. Please try again.');
     } finally {
