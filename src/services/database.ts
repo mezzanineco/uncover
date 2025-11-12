@@ -64,6 +64,23 @@ export const userService = {
   }
 }
 
+// Helper to transform database organisation to app format
+const transformOrganisation = (dbOrg: any): Organisation => ({
+  id: dbOrg.id,
+  name: dbOrg.name,
+  slug: dbOrg.slug,
+  logo: dbOrg.logo,
+  industry: dbOrg.industry,
+  size: dbOrg.size,
+  createdAt: new Date(dbOrg.created_at),
+  createdBy: dbOrg.created_by,
+  settings: dbOrg.settings || {
+    allowGuestParticipants: true,
+    requireConsent: true,
+    dataRetentionDays: 365
+  }
+});
+
 // Organisation operations
 export const organisationService = {
   async createOrganisation(orgData: {
@@ -73,17 +90,18 @@ export const organisationService = {
     industry?: string
     size?: string
   }) {
+    const { createdBy, ...rest } = orgData;
     const { data, error } = await supabase
       .from('organisations')
       .insert([{
-        ...orgData,
-        created_by: orgData.createdBy
+        ...rest,
+        created_by: createdBy
       }])
       .select()
       .single()
-    
+
     if (error) throw error
-    return data
+    return transformOrganisation(data)
   },
 
   async getOrganisationById(id: string) {
@@ -92,9 +110,9 @@ export const organisationService = {
       .select('*')
       .eq('id', id)
       .single()
-    
+
     if (error) throw error
-    return data
+    return transformOrganisation(data)
   },
 
   async updateOrganisation(id: string, updates: Partial<Organisation>) {

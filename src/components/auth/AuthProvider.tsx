@@ -418,8 +418,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           logo: organisation.logo,
           industry: organisation.industry,
           size: organisation.size,
-          createdAt: new Date(organisation.created_at),
-          createdBy: organisation.created_by,
+          createdAt: organisation.createdAt,
+          createdBy: organisation.createdBy,
           settings: organisation.settings
         },
         member: {
