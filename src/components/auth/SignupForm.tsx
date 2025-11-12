@@ -106,13 +106,15 @@ export function SignupForm({ onSignup, onSignupWithPassword, onSwitchToLogin }: 
       }
 
       console.log('Verification check - Session exists:', !!session, 'Silent mode:', silent);
+      console.log('Email confirmed at:', session?.user?.email_confirmed_at);
 
-      if (session?.user) {
+      if (session?.user && session.user.email_confirmed_at) {
         // User is verified and signed in!
-        console.log('✅ User verified successfully! Session found.');
+        console.log('✅ User verified successfully! Email confirmed at:', session.user.email_confirmed_at);
 
-        // Clear the verification flag since email is now confirmed
+        // Clear the verification flags since email is now confirmed
         sessionStorage.removeItem('awaiting_email_verification');
+        sessionStorage.removeItem('verification_email');
 
         // Only reload if this is not a silent check (i.e., user clicked the button)
         if (!silent) {
@@ -128,8 +130,9 @@ export function SignupForm({ onSignup, onSignupWithPassword, onSwitchToLogin }: 
           window.location.reload();
         }
       } else {
-        // No session yet - email not verified
-        console.log('No session found - email not verified yet');
+        // No session yet or email not verified
+        const reason = !session ? 'no session found' : 'email not confirmed';
+        console.log(`Email not verified yet - ${reason}`);
         if (!silent) {
           // Only show error message if user manually clicked the button
           setError('Email not verified yet. Please check your inbox and click the confirmation link.');

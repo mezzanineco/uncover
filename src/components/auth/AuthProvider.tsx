@@ -61,13 +61,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
           await loadUserData(session.user.id, session.user.email!);
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
           console.log('Token refreshed, ensuring user data is loaded...');
-          // Check if we already have user data, if not, load it
+
+          // Check email confirmation status first
+          if (!session.user.email_confirmed_at) {
+            console.log('⚠️ Token refreshed but email not confirmed - keeping user blocked');
+            sessionStorage.setItem('awaiting_email_verification', 'true');
+            setAuthState(prev => ({
+              ...prev,
+              isLoading: false,
+              isAuthenticated: false,
+              isAwaitingEmailVerification: true
+            }));
+            isLoadingRef.current = false;
+            return;
+          }
+
+          // Email is confirmed, check if we need to load user data
           if (!authState.user || !authState.isAuthenticated) {
             await loadUserData(session.user.id, session.user.email!);
           }
         } else if (event === 'SIGNED_OUT') {
           console.log('User signed out');
           sessionStorage.removeItem('awaiting_email_verification');
+          sessionStorage.removeItem('verification_email');
           setAuthState({
             user: null,
             organisation: null,
@@ -660,23 +676,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
         console.log('User email confirmed:', data.user.email_confirmed_at);
         console.log('User identities:', data.user.identities);
         console.log('Session exists:', !!data.session);
+        console.log('Confirmation sent at:', data.user.confirmation_sent_at);
 
-        // Check multiple signals for email confirmation requirement
-        const needsEmailConfirmation =
-          !data.session ||
-          !data.user.email_confirmed_at ||
-          !data.user.identities ||
-          data.user.identities.length === 0;
+        // CRITICAL: Check if email confirmation is required
+        // When Supabase has "Confirm Email" enabled:
+        // - data.session will be null (no session until email is confirmed)
+        // - data.user.email_confirmed_at will be null
+        // - User must click the confirmation link to proceed
+        const needsEmailConfirmation = !data.user.email_confirmed_at;
 
         console.log('Needs email confirmation:', needsEmailConfirmation);
+        console.log('Email confirmation check:', {
+          hasSession: !!data.session,
+          emailConfirmedAt: data.user.email_confirmed_at,
+          needsConfirmation: needsEmailConfirmation
+        });
 
         if (needsEmailConfirmation) {
           console.log('✉️ EMAIL CONFIRMATION REQUIRED - user must verify email before accessing platform');
-          console.log('Throwing EMAIL_CONFIRMATION_REQUIRED error to show verification screen');
+          console.log('Confirmation email should have been sent by Supabase');
+          console.log('User will remain on verification screen until email is confirmed');
 
           // CRITICAL: Ensure auth state is not loading and not authenticated
           // This prevents the loading screen from appearing while user is on verification screen
           sessionStorage.setItem('awaiting_email_verification', 'true');
+          sessionStorage.setItem('verification_email', email);
+
           setAuthState(prev => ({
             ...prev,
             isLoading: false,
@@ -849,8 +874,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       supabase.auth.signOut();
     }
 
-    // Clear local storage
+    // Clear local storage and session storage
     localStorage.removeItem('auth_token');
+    sessionStorage.removeItem('awaiting_email_verification');
+    sessionStorage.removeItem('verification_email');
 
     setAuthState({
       user: null,

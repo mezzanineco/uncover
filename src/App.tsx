@@ -164,30 +164,53 @@ function AppContent() {
 
     // Handle email confirmation callback
     if (path === '/auth/confirm') {
-      console.log('Email confirmation callback detected');
+      console.log('========================================');
+      console.log('EMAIL CONFIRMATION CALLBACK DETECTED');
+      console.log('========================================');
+      console.log('URL path:', path);
+      console.log('URL params:', params.toString());
 
       // Check for error in URL params
       const error = params.get('error');
       const errorDescription = params.get('error_description');
+      const type = params.get('type');
+      const tokenHash = params.get('token_hash');
+
+      console.log('Confirmation params:', { error, errorDescription, type, hasTokenHash: !!tokenHash });
 
       if (error) {
-        console.error('Email confirmation error:', error, errorDescription);
-        // Show error state and redirect to login
-        alert(`Email confirmation failed: ${errorDescription || error}. Please try signing in or contact support.`);
+        console.error('❌ Email confirmation error:', error, errorDescription);
+
+        // Determine user-friendly error message
+        let userMessage = 'Email confirmation failed. ';
+        if (error === 'access_denied') {
+          userMessage += 'The confirmation link may have expired or is invalid.';
+        } else {
+          userMessage += errorDescription || error;
+        }
+        userMessage += ' Please try signing up again or contact support.';
+
+        alert(userMessage);
         window.history.replaceState({}, document.title, '/');
         setCurrentState('auth');
-        setAuthMode('login');
+        setAuthMode('signup');
         return;
       }
 
       // The auth state change listener in AuthProvider will handle the session
-      // Show a brief success message before redirect
-      console.log('Email confirmed successfully! Loading your dashboard...');
+      // Supabase automatically creates the session when the user clicks the confirmation link
+      console.log('✅ Email confirmation successful! Supabase is creating session...');
+      console.log('AuthProvider will detect the session and load user data');
+
+      // Clear verification flags
+      sessionStorage.removeItem('awaiting_email_verification');
+      sessionStorage.removeItem('verification_email');
 
       // Clear the URL parameters after a brief delay to allow auth state to update
       setTimeout(() => {
+        console.log('Cleaning up URL parameters');
         window.history.replaceState({}, document.title, '/');
-      }, 100);
+      }, 500);
     }
   }, []);
 
