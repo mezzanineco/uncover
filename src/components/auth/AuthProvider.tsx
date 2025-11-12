@@ -378,6 +378,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const createDefaultOrganisation = async (user: any) => {
     try {
+      console.log('Creating default organisation for user:', user.id, user.email);
+
       const organisation = await organisationService.createOrganisation({
         name: `${user.name || user.email.split('@')[0]}'s Organisation`,
         slug: `${user.email.split('@')[0]}-org-${Date.now()}`,
@@ -386,11 +388,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
         size: 'small'
       });
 
+      console.log('Organisation created:', organisation.id);
+
       const membership = await memberService.addMember({
         userId: user.id,
         organisationId: organisation.id,
         role: 'user_admin'
       });
+
+      console.log('Membership created:', membership.id);
 
       sessionStorage.removeItem('awaiting_email_verification');
       setAuthState({
@@ -432,10 +438,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
         isAwaitingEmailVerification: false
       });
       isLoadingRef.current = false;
-    } catch (error) {
-      console.error('Error creating default organisation:', error);
+      console.log('✅ Default organisation setup complete');
+    } catch (error: any) {
+      console.error('❌ Error creating default organisation:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
+
+      // Show user-friendly error
+      alert(`Failed to create your workspace: ${error.message || 'Unknown error'}. Please refresh the page and try again, or contact support if the issue persists.`);
+
       setAuthState(prev => ({ ...prev, isLoading: false }));
       isLoadingRef.current = false;
+
+      // Re-throw to allow caller to handle
+      throw error;
     }
   };
 
